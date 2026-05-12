@@ -6,7 +6,7 @@ A retro pixel art fighting game built on Base. Single player vs AI, fully browse
 
 ## 🎮 Play
 
-**[▶ Live Demo](https://your-vercel-link-here.vercel.app)**
+**[▶ Live Demo](https://base-fighter.vercel.app)**
 
 ## Controls
 
