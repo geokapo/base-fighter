@@ -13,9 +13,10 @@ h1 { font-size: 28px; letter-spacing: 6px; color: #fbbf24; text-shadow: 0 0 20px
 
 /* Wallet & Leaderboard UI */
 #top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 6px; border: 1px solid #2a2a6e; }
-#wallet-btn { background: #fbbf24; color: #000; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px; }
-#wallet-btn:hover { background: #f59e0b; }
-#wallet-address { font-size: 10px; color: #fbbf24; display: none; }
+#wallet-btn { background: #fbbf24; color: #000; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px; box-shadow: 0 3px 0 #92400e; transition: all 0.1s; }
+#wallet-btn:hover { background: #f59e0b; transform: translateY(-1px); box-shadow: 0 4px 0 #92400e; }
+#wallet-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #92400e; }
+#wallet-address { font-size: 10px; color: #fbbf24; display: none; background: rgba(251, 191, 36, 0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(251, 191, 36, 0.3); }
 
 #hud { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .hp-wrap { width: 230px; }
@@ -78,11 +79,11 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
 }
 
 /* Leaderboard Modal */
-#leaderboard-modal { position: absolute; inset: 0; background: rgba(10, 10, 31, 0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; border-radius: 10px; padding: 20px; text-align: center; }
-.lb-table { width: 100%; max-width: 400px; margin: 20px 0; border-collapse: collapse; }
-.lb-table th { color: #fbbf24; border-bottom: 1px solid #4a4a8a; padding: 8px; font-size: 12px; }
-.lb-table td { padding: 8px; color: #ccc; font-size: 11px; border-bottom: 1px solid #222; }
-.lb-row { animation: fadeInSlide 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+#leaderboard-modal { position: absolute; inset: 0; background: rgba(5, 5, 20, 0.98); display: none; flex-direction: column; align-items: center; justify-content: flex-start; z-index: 100; border-radius: 10px; padding: 30px 20px; text-align: center; backdrop-filter: blur(8px); }
+.lb-table { width: 100%; max-width: 500px; margin: 20px 0; border-collapse: collapse; background: rgba(0,0,0,0.2); border-radius: 8px; overflow: hidden; }
+.lb-table th { color: #fbbf24; border-bottom: 2px solid #2a2a6e; padding: 12px 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+.lb-table td { padding: 12px 8px; color: #ccc; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.lb-row { animation: fadeInSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
 @keyframes fadeInSlide {
     from { opacity: 0; transform: translateY(15px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
@@ -177,11 +178,10 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
             <tr class="lb-row"><td></td><td>LOADING...</td><td></td></tr>
         </tbody>
     </table>
-    <div style="display: flex; gap: 10px; justify-content: center;">
+    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
       <button id="close-lb-btn" class="close-lb">CLOSE</button>
       <button id="refresh-lb-btn" class="close-lb" style="background: #2a2a6e;">RELOAD</button>
     </div>
-    <button id="lb-reset" style="margin-top: 20px; background: none; border: 1px solid #4a4a8a; color: #4a4a8a; font-size: 10px; cursor: pointer; padding: 6px 12px; border-radius: 4px; transition: all 0.2s;">RESET MY SCORE (TESTING)</button>
   </div>
 </div>
 
@@ -193,21 +193,23 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
 import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, getDocs, serverTimestamp, increment } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
-let db;
+const firebaseConfig = {
+  "projectId": "gen-lang-client-0631620790",
+  "appId": "1:892855136205:web:8e3433c75f1db623f31e84",
+  "apiKey": "AIzaSyDFCpOwUkJws-EV5iemDTk6R0KwrdP1uvo",
+  "authDomain": "gen-lang-client-0631620790.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-47c5dd2d-158c-4d0a-a506-da22f49c71b1",
+  "storageBucket": "gen-lang-client-0631620790.firebasestorage.app",
+  "messagingSenderId": "892855136205",
+  "measurementId": ""
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 let userAddress = null;
 
-async function initFirebase() {
-    try {
-        const configResponse = await fetch('./firebase-applet-config.json');
-        const firebaseConfig = await configResponse.json();
-        const app = initializeApp(firebaseConfig);
-        db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-        console.log("Firebase initialized");
-        loadLeaderboard();
-    } catch (err) {
-        console.error("Firebase init failed", err);
-    }
-}
+console.log("Firebase initialized");
+loadLeaderboard();
 
 // Wallet Connection
 async function connectWallet() {
@@ -221,9 +223,8 @@ async function connectWallet() {
     if (provider) {
         try {
             const accounts = await provider.request({ method: 'eth_requestAccounts' });
-            userAddress = accounts[0];
+            userAddress = accounts[0].toLowerCase();
             updateWalletUI();
-            // Try to sync/check existing score
             if (db) {
                 const docRef = doc(db, 'leaderboard', userAddress);
                 const docSnap = await getDoc(docRef);
@@ -253,25 +254,28 @@ function updateWalletUI() {
 }
 
 async function updateLeaderboardScore() {
-    if (!userAddress || !db) return;
+    if (!userAddress || !db) {
+        console.warn("Cannot sync: Wallet or DB missing");
+        return;
+    }
     try {
-        msg('SYNCING CHAMPION STATUS...', 9999);
-        const docRef = doc(db, 'leaderboard', userAddress);
+        msg('SYNCING WINS TO BASE...', 9999);
+        const docRef = doc(db, 'leaderboard', userAddress.toLowerCase());
         
-        // Use increment(1) to ensure the count goes up correctly
         await setDoc(docRef, {
-            address: userAddress,
+            address: userAddress.toLowerCase(),
             wins: increment(1),
             updatedAt: serverTimestamp()
         }, { merge: true });
         
-        console.log("Score synced for:", userAddress);
-        // Delay slightly then reload to see updated count
-        setTimeout(() => loadLeaderboard(), 1500);
-        msg('RANKING UPDATED! 🏆', 120);
+        console.log("Score incremented for:", userAddress);
+        msg('WINS SYNCED! 🏆', 140);
+        
+        // Refresh leaderboard after a short delay
+        setTimeout(() => loadLeaderboard(), 2000);
     } catch (err) {
         console.error("Firestore sync error:", err);
-        msg('SYNC ERROR (Check Connection)', 120);
+        msg('SYNC ERROR: Check Connection', 180);
     }
 }
 
@@ -316,7 +320,6 @@ async function loadLeaderboard() {
 }
 
 document.getElementById('wallet-btn').onclick = connectWallet;
-initFirebase();
 
 // Leaderboard Display
 const lbModal = document.getElementById('leaderboard-modal');
@@ -324,18 +327,6 @@ document.getElementById('show-lb-btn').onclick = () => { lbModal.style.display =
 document.getElementById('close-lb-btn').onclick = () => { lbModal.style.display = 'none'; };
 const refreshBtn = document.getElementById('refresh-lb-btn');
 if (refreshBtn) refreshBtn.onclick = loadLeaderboard;
-
-document.getElementById('lb-reset').onclick = async () => {
-    if (!userAddress || !db) { alert("Wallet not connected"); return; }
-    if (confirm("Reset your score to zero for testing? This will sync with the leaderboard.")) {
-        try {
-            msg('RESETTING SCORE...', 9999);
-            await setDoc(doc(db, 'leaderboard', userAddress), { address: userAddress, wins: 0, updatedAt: serverTimestamp() }, { merge: true });
-            await loadLeaderboard();
-            msg('SCORE RESET TO 0', 60);
-        } catch (e) { console.error(e); msg('RESET ERROR', 60); }
-    }
-};
 
 /**
  * ── Game Engine (Original Base Fighter Code) ──────────────────
@@ -592,10 +583,10 @@ function aiStep() {
   const d = Math.abs(AI.x-P.x), r = Math.random();
   
   // Jump logic (Special Moves)
-  const jumpChance = difficulty === 'hard' ? 0.08 : (difficulty === 'med' ? 0.03 : 0);
-  if (AI.onGround && r < jumpChance && d < 120) {
+  const jumpChance = difficulty === 'hard' ? 0.12 : (difficulty === 'med' ? 0.05 : 0);
+  if (AI.onGround && r < jumpChance && d < 140) {
     aiAct = 'jump';
-    aiT = 15;
+    aiT = 12;
     return;
   }
 
