@@ -527,7 +527,7 @@ function checkHit(att,def) {
       // Add slight horizontal knockback
       def.vx = (att.x < def.x ? 5 : -5);
       if (def.hp <= 0) {
-        slowMo = 100; // ~1.6 seconds of dramatic slow-mo
+        slowMo = 70; // Reduced dramatic slow-mo
         shake = 40;   // Powerful screen shake
         snd.ko();
       }
@@ -633,8 +633,8 @@ function checkEnd() {
   running=false;
   const win=AI.hp<=0;
 
-  if(win){ scores[0]++; snd.win(); msg('YOU WIN ROUND! 🏆', 9999); }
-  else   { scores[1]++; snd.lose(); msg('CPU WINS ROUND! 😤', 9999); }
+  if(win){ scores[0]++; snd.win(); msg('YOU WIN ROUND! 🏆', 300); }
+  else   { scores[1]++; snd.lose(); msg('CPU WINS ROUND! 😤', 300); }
   
   hud();
 
@@ -642,7 +642,7 @@ function checkEnd() {
       const matchWin = scores[0] >= 2;
       
       setTimeout(() => {
-          msg(matchWin ? '🏆 YOU ARE CHAMPION! 🏆' : '💀 CPU IS CHAMPION 💀', 9999);
+          msg(matchWin ? '🏆 YOU ARE CHAMPION! 🏆' : '💀 CPU IS CHAMPION 💀', 300);
           if (matchWin && userAddress) updateLeaderboardScore();
           scores = [0, 0];
           round = 1;
@@ -652,7 +652,7 @@ function checkEnd() {
   } else {
       round++;
       setTimeout(() => { 
-        msg('READY FOR ROUND ' + round + '?', 9999); 
+        msg('READY FOR ROUND ' + round + '?', 300); 
         document.getElementById('btn-fight').style.boxShadow = '0 0 20px #fbbf24';
         document.getElementById('btn-fight').textContent = '⚔ START R' + round;
       }, 800);
