@@ -43,46 +43,56 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
 #btn-fight { color: #fbbf24; border-color: #fbbf24; background: #2a2a1e; font-weight: bold; padding: 10px 20px; font-size: 16px; height: 60px; min-width: 120px; box-shadow: 0 4px 0 #1a1a0a; border-radius: 10px; margin-bottom: 5px; }
 
 @media (max-width: 600px) {
+    #container { padding: 6px; }
     #ctrl { 
         align-items: flex-end; 
-        padding-bottom: 20px; 
-        gap: 5px;
+        padding-bottom: 40px; 
+        gap: 2px;
         justify-content: space-around;
+        margin-top: 5px;
+        height: 155px;
     }
     .btn { 
-        min-width: 50px; 
-        min-height: 50px; 
-        font-size: 16px; 
-        padding: 8px;
-        border-radius: 10px;
+        min-width: 44px; 
+        min-height: 44px; 
+        font-size: 14px; 
+        padding: 5px;
+        border-radius: 8px;
+        box-shadow: 0 3px 0 #0f0f2d;
     }
-    .btn::after { font-size: 7px; bottom: 2px; }
+    .btn::after { font-size: 5px; bottom: 1px; }
     
     #btn-fight { 
         position: absolute; 
-        bottom: -5px; 
+        bottom: 5px; 
         left: 50%; 
         transform: translateX(-50%); 
-        z-index: 20; 
+        z-index: 50; 
         font-size: 13px; 
         min-width: 90px; 
-        height: 45px;
-        padding: 5px 10px;
+        height: 42px;
+        box-shadow: 0 3px 0 #1a1a0a;
     }
+    #btn-fight:active { transform: translateX(-50%) translateY(2px); }
     
-    .ctrl-zone.center { height: 45px; min-width: 90px; }
-    .ctrl-zone.left { flex: 1; max-width: 120px; }
-    .ctrl-zone.right { flex: 1; max-width: 120px; }
+    .ctrl-zone.center { height: 42px; min-width: 90px; }
+    .ctrl-zone.left { flex: 0 0 auto; width: 100px; gap: 4px; padding-left: 2px; }
+    .ctrl-zone.right { flex: 0 0 auto; width: 105px; gap: 4px; padding-right: 2px; }
     
     .ctrl-group.grid { gap: 4px; }
-    #btn-block { min-height: 40px !important; font-size: 12px; }
+    #btn-block { min-height: 40px !important; font-size: 11px; }
+    #hud { margin-bottom: 4px; }
+    .hp-wrap { width: 125px; }
+    h1 { font-size: 18px; letter-spacing: 3px; }
+    #subtitle { margin-bottom: 8px; font-size: 9px; }
+    #ctrl-hints { display: none !important; }
 }
 
 /* Leaderboard Modal */
-#leaderboard-modal { position: absolute; inset: 0; background: rgba(5, 5, 20, 0.98); display: none; flex-direction: column; align-items: center; justify-content: flex-start; z-index: 100; border-radius: 10px; padding: 30px 20px; text-align: center; backdrop-filter: blur(8px); }
-.lb-table { width: 100%; max-width: 500px; margin: 20px 0; border-collapse: collapse; background: rgba(0,0,0,0.2); border-radius: 8px; overflow: hidden; }
-.lb-table th { color: #fbbf24; border-bottom: 2px solid #2a2a6e; padding: 12px 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
-.lb-table td { padding: 12px 8px; color: #ccc; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+#leaderboard-modal { position: absolute; inset: 0; background: rgba(5, 5, 20, 0.98); display: none; flex-direction: column; align-items: center; justify-content: flex-start; z-index: 100; border-radius: 10px; padding: 20px 15px; text-align: center; backdrop-filter: blur(8px); overflow-y: auto; }
+.lb-table { width: 100%; max-width: 500px; margin: 15px 0; border-collapse: collapse; background: rgba(0,0,0,0.2); border-radius: 8px; overflow: hidden; }
+.lb-table th { color: #fbbf24; border-bottom: 2px solid #2a2a6e; padding: 10px 5px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+.lb-table td { padding: 10px 5px; color: #ccc; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.05); }
 .lb-row { animation: fadeInSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
 @keyframes fadeInSlide {
     from { opacity: 0; transform: translateY(15px) scale(0.98); }
@@ -112,15 +122,16 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
     </div>
 
     <div id="wallet-area">
-      <button id="wallet-btn">CONNECT WALLET</button>
+      <button id="wallet-btn" style="background: #fbbf24; color: #000; border: none; padding: 4px 10px; font-size: 10px; font-weight: bold; border-radius: 4px; cursor: pointer;">SIGN IN TO RANK</button>
       <span id="wallet-address"></span>
     </div>
   </div>
 
   <div id="hud">
     <div class="hp-wrap">
-      <div class="hp-label">PLAYER</div>
+      <div class="hp-label" id="p1-name">PLAYER</div>
       <div class="hp-bar"><div class="hp-fill" id="p-hp" style="width:100%"></div></div>
+      <div id="p1-score" style="font-size: 9px; color: #fbbf24; margin-top: 2px;">WINS: 0</div>
     </div>
     <div id="mid">
       <div id="round-label">ROUND 1</div>
@@ -129,6 +140,7 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
     <div class="hp-wrap right">
       <div class="hp-label" style="text-align:right" id="p2-name">CPU</div>
       <div class="hp-bar"><div class="hp-fill" id="a-hp" style="width:100%"></div></div>
+      <div id="p2-score" style="font-size: 9px; color: #ccc; margin-top: 2px; text-align: right;">WINS: 0</div>
     </div>
   </div>
 
@@ -164,8 +176,9 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
   </div>
   
   <div id="leaderboard-modal">
-    <h3>BASE CHAMPIONS</h3>
-    <div id="lb-status" style="font-size: 10px; color: #fbbf24; margin-bottom: 5px; height: 12px;"></div>
+    <h3 style="margin:0; color:#fff; font-size: 18px;">BASE CHAMPIONS</h3>
+    <div id="lb-status" style="font-size: 10px; color: #fbbf24; margin-bottom: 5px; height: 12px; letter-spacing: 1px;">LOADING RANKINGS...</div>
+    <div style="font-size: 9px; color: #888; margin-bottom: 5px; max-width: 280px;">Global rankings are free. Optional blockchain sync records your ultimate legacy on Base (gas fee applies).</div>
     <table class="lb-table">
         <thead>
             <tr>
@@ -178,9 +191,14 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
             <tr class="lb-row"><td></td><td>LOADING...</td><td></td></tr>
         </tbody>
     </table>
-    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
-      <button id="close-lb-btn" class="close-lb">CLOSE</button>
-      <button id="refresh-lb-btn" class="close-lb" style="background: #2a2a6e;">RELOAD</button>
+    <div style="display: flex; flex-direction: column; gap: 10px; align-items: center; margin-top: 15px;">
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button id="close-lb-btn" class="close-lb">CLOSE</button>
+        <button id="refresh-lb-btn" class="close-lb" style="background: #2a2a6e;">RELOAD</button>
+        <button id="verify-chain-btn" class="close-lb" style="background: #0052ff;">BLOCKCHAIN</button>
+      </div>
+      <button id="sync-chain-btn" style="background: linear-gradient(to bottom, #fbbf24, #f59e0b); color: #000; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px; display: none; width: 100%; border: 2px solid #000;">⛓ RECORD YOUR WINS ON BASE CHAIN</button>
+      <div id="sync-hint" style="font-size: 9px; color: #888; max-width: 280px;">Saves your progress to the blockchain forever (optional gas fee applies)</div>
     </div>
   </div>
 </div>
@@ -193,23 +211,51 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
 import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, getDocs, serverTimestamp, increment } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
-const firebaseConfig = {
-  "projectId": "gen-lang-client-0631620790",
-  "appId": "1:892855136205:web:8e3433c75f1db623f31e84",
-  "apiKey": "AIzaSyDFCpOwUkJws-EV5iemDTk6R0KwrdP1uvo",
-  "authDomain": "gen-lang-client-0631620790.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-47c5dd2d-158c-4d0a-a506-da22f49c71b1",
-  "storageBucket": "gen-lang-client-0631620790.firebasestorage.app",
-  "messagingSenderId": "892855136205",
-  "measurementId": ""
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+let db = null;
 let userAddress = null;
 
-console.log("Firebase initialized");
-loadLeaderboard();
+async function init() {
+    try {
+        const response = await fetch('/firebase-applet-config.json');
+        const firebaseConfig = await response.json();
+
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+        console.log("Firebase initialized");
+        loadLeaderboard();
+    } catch (err) {
+        console.error("Failed to initialize Firebase:", err);
+    }
+}
+init();
+
+const CONTRACT_ADDRESS = "0xF3D403B94C4fee3957d331E49b83631227A1706C";
+const CONTRACT_ABI = [
+    "function recordWin() public", 
+    "function getTopPlayers() public view returns (address[], uint256[])",
+    "function wins(address) public view returns (uint256)"
+];
+
+// Web3 Sync Logic
+async function syncToChain() {
+    if (!userAddress) { alert("Connect wallet first!"); return; }
+    try {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+        
+        msg('PENDING CHAIN SYNC...', 9999);
+        const tx = await contract.recordWin();
+        msg('MINING TRANSACTION...', 9999);
+        await tx.wait();
+        msg('SCORE ON BASE UPDATED! ⛓', 120);
+    } catch (err) {
+        console.error("Chain sync failed", err);
+        msg('CHAIN ERROR (Check Gas/ABI)', 120);
+        alert("Sync failed. If this is a new custom contract, ensure it has a 'recordWin()' function. You can manually register wins if needed.");
+    }
+}
 
 // Wallet Connection
 async function connectWallet() {
@@ -245,37 +291,56 @@ function updateWalletUI() {
     const span = document.getElementById('wallet-address');
     const pLabel = document.querySelector('.hp-label');
     if (userAddress) {
-        btn.style.display = 'none';
+        if (btn) {
+            btn.textContent = "SIGNED IN";
+            btn.style.background = "#4ade80";
+        }
         span.style.display = 'inline';
         const shortAddr = userAddress.substring(0, 6) + "..." + userAddress.substring(userAddress.length - 4);
         span.textContent = shortAddr;
         if (pLabel) pLabel.textContent = shortAddr;
+        const p1Name = document.getElementById('p1-name');
+        if (p1Name) p1Name.textContent = shortAddr;
+        
+        // Show sync button in rankings
+        const syncBtn = document.getElementById('sync-chain-btn');
+        const syncHint = document.getElementById('sync-hint');
+        if (syncBtn) syncBtn.style.display = 'block';
+        if (syncHint) syncHint.style.display = 'block';
     }
 }
 
 async function updateLeaderboardScore() {
-    if (!userAddress || !db) {
-        console.warn("Cannot sync: Wallet or DB missing");
-        return;
-    }
+    if (!userAddress || !db) return;
     try {
-        msg('SYNCING WINS TO BASE...', 9999);
+        const timestamp = Date.now();
+        msg('SYNCING WINS...', 9999);
         const docRef = doc(db, 'leaderboard', userAddress.toLowerCase());
         
+        // Log attempt
+        console.log("Syncing win for:", userAddress.toLowerCase());
+
+        // We use setDoc with merge to ensure it works even if doc doesn't exist
         await setDoc(docRef, {
             address: userAddress.toLowerCase(),
-            wins: increment(1),
+            wins: increment(1), // Atomic increment in Firebase
             updatedAt: serverTimestamp()
         }, { merge: true });
         
-        console.log("Score incremented for:", userAddress);
-        msg('WINS SYNCED! 🏆', 140);
+        console.log("Sync success");
+        sessionWins++;
+        const p1Score = document.getElementById('p1-score');
+        if (p1Score) p1Score.textContent = `CHAMPION WINS: ${sessionWins}`;
         
-        // Refresh leaderboard after a short delay
-        setTimeout(() => loadLeaderboard(), 2000);
+        msg('WINS SYNCED! 🏆', 60);
+        
+        // Refresh leaderboard to show new score
+        setTimeout(() => loadLeaderboard(), 500);
     } catch (err) {
         console.error("Firestore sync error:", err);
-        msg('SYNC ERROR: Check Connection', 180);
+        // Show clearer error
+        msg('SYNC FAILED (Check Rule/Conn)', 150);
+        alert("Firestore sync failed. Your wins are still tracked locally this session. Ensure your wallet is on Base and authorized.");
     }
 }
 
@@ -283,13 +348,13 @@ async function loadLeaderboard() {
     const lbBody = document.getElementById('lb-body');
     const lbStatus = document.getElementById('lb-status');
     if (!lbBody) return;
-    if (!db) {
-        lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">CONNECTING...</td></tr>';
-        return;
-    }
+    
+    lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">LOADING CHAMPIONS (FREE)...</td></tr>';
+    
     try {
         const q = query(collection(db, 'leaderboard'), orderBy('wins', 'desc'), limit(10));
         const querySnapshot = await getDocs(q); 
+        
         lbBody.innerHTML = '';
         let rank = 1;
         querySnapshot.forEach((doc) => {
@@ -297,7 +362,6 @@ async function loadLeaderboard() {
             if (!data.address) return;
             const row = document.createElement('tr');
             row.className = 'lb-row';
-            row.style.animationDelay = `${(rank - 1) * 0.05}s`;
             const addr = data.address.substring(0, 6) + "..." + data.address.substring(data.address.length - 4);
             const isMe = userAddress && data.address.toLowerCase() === userAddress.toLowerCase();
             const rowStyle = isMe ? 'background: rgba(251,191,36,0.15); border-left: 3px solid #fbbf24;' : '';
@@ -309,13 +373,55 @@ async function loadLeaderboard() {
             `;
             lbBody.appendChild(row);
         });
+
         if (rank === 1) {
             lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">NO CHAMPIONS YET</td></tr>';
         }
-        if (lbStatus) lbStatus.textContent = "UP TO DATE";
+        if (lbStatus) lbStatus.textContent = "GLOBAL RANKINGS (FREE)";
+        
+        // Show sync button only if connected
+        const syncBtn = document.getElementById('sync-chain-btn');
+        const syncHint = document.getElementById('sync-hint');
+        if (syncBtn) syncBtn.style.display = userAddress ? 'block' : 'none';
+        if (syncHint) syncHint.style.display = userAddress ? 'block' : 'none';
+
     } catch (err) {
         console.error("Error loading leaderboard", err);
-        lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">ERROR LOADING</td></tr>';
+        lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">ERROR LOADING RANKINGS</td></tr>';
+    }
+}
+
+async function verifyOnChain() {
+    const lbBody = document.getElementById('lb-body');
+    const lbStatus = document.getElementById('lb-status');
+    lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">VERIFYING BASE BLOCKCHAIN RECORDS...</td></tr>';
+    
+    try {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+        const [addresses, scores] = await contract.getTopPlayers();
+        
+        lbBody.innerHTML = '';
+        let list = [];
+        for (let i = 0; i < addresses.length; i++) {
+            list.push({ address: addresses[i], wins: scores[i].toNumber() });
+        }
+        list.sort((a,b) => b.wins - a.wins);
+        
+        let rank = 1;
+        list.forEach((data) => {
+            if (data.wins === 0) return;
+            const row = document.createElement('tr');
+            row.className = 'lb-row';
+            const addr = data.address.substring(0, 6) + "..." + data.address.substring(data.address.length - 4);
+            row.innerHTML = `<td>#${rank++}</td><td>⛓ ${addr}</td><td style="color: #fbbf24; font-weight: bold;">${data.wins}</td>`;
+            lbBody.appendChild(row);
+        });
+        if (lbStatus) lbStatus.textContent = "VERIFIED ON BASE (BLOCKCHAIN)";
+        if (rank === 1) lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">NO BLOCKCHAIN RECORDS FOUND</td></tr>';
+    } catch (e) {
+        alert("Connect wallet and use Base network to verify on-chain records.");
+        loadLeaderboard();
     }
 }
 
@@ -328,13 +434,18 @@ document.getElementById('close-lb-btn').onclick = () => { lbModal.style.display 
 const refreshBtn = document.getElementById('refresh-lb-btn');
 if (refreshBtn) refreshBtn.onclick = loadLeaderboard;
 
+const verifyBtn = document.getElementById('verify-chain-btn');
+if (verifyBtn) verifyBtn.onclick = verifyOnChain;
+
+const syncChainBtn = document.getElementById('sync-chain-btn');
+if (syncChainBtn) syncChainBtn.onclick = syncToChain;
+
 /**
  * ── Game Engine (Original Base Fighter Code) ──────────────────
  */
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const W = 640, H = 224, FLOOR = 162, GR = 0.55;
-
 // Audio 
 let ac = null;
 function audio() { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); return ac; }
@@ -360,7 +471,7 @@ const snd = {
 };
 
 // State
-let P, AI, running=false, round=1, scores=[0,0], raf, msgTimer=0, slowMo=0, shake=0;
+let P, AI, running=false, round=1, scores=[0,0], raf, msgTimer=0, slowMo=0, shake=0, sessionWins=0;
 let difficulty = 'medium';
 
 const DIFF_SETTINGS = {
@@ -380,6 +491,12 @@ document.querySelectorAll('.diff-btn').forEach(btn => {
         btn.style.background = '#4a4a8a';
         btn.style.color = '#fff';
         difficulty = btn.dataset.diff;
+        if (!running) reset();
+        else {
+            // Reset AI tactical state immediately so it picks up new settings
+            aiT = 0;
+            aiAct = null;
+        }
     };
 });
 
@@ -681,7 +798,26 @@ function checkEnd() {
       
       setTimeout(() => {
           msg(matchWin ? '🏆 YOU ARE CHAMPION! 🏆' : '💀 CPU IS CHAMPION 💀', 300);
-          if (matchWin && userAddress) updateLeaderboardScore();
+          if (matchWin) {
+              if (userAddress) {
+                  updateLeaderboardScore();
+              } else {
+                  sessionWins++;
+                  const p1Score = document.getElementById('p1-score');
+                  if (p1Score) p1Score.textContent = `CHAMPION WINS: ${sessionWins}`;
+                  msg('WIN! SIGN IN TO RANK', 200);
+              }
+              // Show on-chain sync prompt if wallet connected
+              const syncBtn = document.getElementById('sync-chain-btn');
+              const syncHint = document.getElementById('sync-hint');
+              if (userAddress && syncBtn) syncBtn.style.display = 'block';
+              if (userAddress && syncHint) syncHint.style.display = 'block';
+          }
+          
+          // Update visual scores
+          document.getElementById('p1-score').textContent = `MATCH WINS: ${scores[0]}`;
+          document.getElementById('p2-score').textContent = `CPU WINS: ${scores[1]}`;
+          
           scores = [0, 0];
           round = 1;
           document.getElementById('btn-fight').style.boxShadow = '0 0 20px #fbbf24';
