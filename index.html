@@ -305,10 +305,13 @@ async function connectWallet() {
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     const totalWins = docSnap.data().wins || 0;
-                    sessionWins = totalWins;
-                    const p1Score = document.getElementById('p1-score');
-                    if (p1Score) p1Score.textContent = `CHAMPION WINS: ${sessionWins}`;
+                    // Take the higher amount: local or remote
+                    sessionWins = Math.max(sessionWins, totalWins);
+                    updateWinsUI();
                     console.log("Welcome back, player with", totalWins, "wins");
+                } else if (sessionWins > 0) {
+                    // New user but has local wins - sync them!
+                    updateLeaderboardScore();
                 }
             }
         } catch (err) {
@@ -352,13 +355,11 @@ async function updateLeaderboardScore() {
         
         await setDoc(docRef, {
             address: userAddress.toLowerCase(),
-            wins: increment(1),
+            wins: sessionWins, // Use local session wins as the source
             updatedAt: serverTimestamp()
         }, { merge: true });
         
-        sessionWins++;
-        const p1Score = document.getElementById('p1-score');
-        if (p1Score) p1Score.textContent = `CHAMPION WINS: ${sessionWins}`;
+        updateWinsUI();
         
         msg('WINS SYNCED! 🏆', 60);
     } catch (err) {
@@ -427,6 +428,7 @@ async function fetchPersonalRank() {
         const myDoc = await getDoc(doc(db, 'leaderboard', userAddress.toLowerCase()));
         if (myDoc.exists()) {
              const data = myDoc.data();
+             const wins = Math.max(data.wins || 0, sessionWins);
              const row = document.createElement('tr');
              row.className = 'lb-row';
              row.style.borderTop = '2px solid #2a2a6e';
@@ -435,7 +437,18 @@ async function fetchPersonalRank() {
              row.innerHTML = `
                 <td style="${rowStyle}">YOU</td>
                 <td style="${rowStyle}">${shortAddr}</td>
-                <td style="${rowStyle} color: #fbbf24;">${data.wins || 0}</td>
+                <td style="${rowStyle} color: #fbbf24;">${wins}</td>
+             `;
+             lbBody.appendChild(row);
+        } else if (sessionWins > 0) {
+             const row = document.createElement('tr');
+             row.className = 'lb-row';
+             row.style.borderTop = '2px solid #2a2a6e';
+             const rowStyle = 'background: rgba(100,100,250,0.15); border-left: 4px solid #4a4a8a; color: #fff;';
+             row.innerHTML = `
+                <td style="${rowStyle}">GUEST</td>
+                <td style="${rowStyle}">LOCAL SESSION</td>
+                <td style="${rowStyle} color: #fbbf24;">${sessionWins}</td>
              `;
              lbBody.appendChild(row);
         }
@@ -523,8 +536,15 @@ const snd = {
 };
 
 // State
-let P, AI, running=false, round=1, scores=[0,0], raf, msgTimer=0, slowMo=0, shake=0, sessionWins=0;
+let P, AI, running=false, round=1, scores=[0,0], raf, msgTimer=0, slowMo=0, shake=0;
+let sessionWins = parseInt(localStorage.getItem('bf_wins') || '0');
 let difficulty = 'medium';
+
+function updateWinsUI() {
+    const p1Score = document.getElementById('p1-score');
+    if (p1Score) p1Score.textContent = `CHAMPION WINS: ${sessionWins}`;
+    localStorage.setItem('bf_wins', sessionWins);
+}
 
 const DIFF_SETTINGS = {
   easy:   { react: [40, 80], block: 0.05, agg: 0.3,  speed: 0.4 },
@@ -851,12 +871,11 @@ function checkEnd() {
       setTimeout(() => {
           msg(matchWin ? '🏆 YOU ARE CHAMPION! 🏆' : '💀 CPU IS CHAMPION 💀', 300);
           if (matchWin) {
+              sessionWins++;
               if (userAddress) {
                   updateLeaderboardScore();
               } else {
-                  sessionWins++;
-                  const p1Score = document.getElementById('p1-score');
-                  if (p1Score) p1Score.textContent = `CHAMPION WINS: ${sessionWins}`;
+                  updateWinsUI();
                   msg('WIN! SIGN IN TO RANK', 200);
               }
               // Show on-chain sync prompt if wallet connected
@@ -930,6 +949,7 @@ document.getElementById('btn-kick').addEventListener('click', ()=>{ if(running&&
 document.getElementById('btn-block').addEventListener('click',()=>{ if(running&&slowMo===0){P.state='block';P.blockTimer=10;} });
 
 reset(); draw(); hud();
+updateWinsUI(); // Show localStorage wins immediately
 startLeaderboardListener();
 </script>
 </body>
