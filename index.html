@@ -1,3 +1,5 @@
+html
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,9 +8,14 @@
 <title>BASE FIGHTER</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; image-rendering: pixelated; }
-body { background: #0a0a1f; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: monospace; color: #fff; }
+body { background: #0a0a1f; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: monospace; color: #fff; padding: 10px; }
 h1 { font-size: 28px; letter-spacing: 6px; color: #fbbf24; text-shadow: 0 0 20px #f59e0b88; margin-bottom: 8px; }
-#subtitle { font-size: 11px; letter-spacing: 3px; color: #4a4a8a; margin-bottom: 14px; }
+#subtitle { font-size: 11px; letter-spacing: 3px; color: #4a4a8a; margin-bottom: 10px; }
+#wallet-bar { display: flex; gap: 10px; align-items: center; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
+#wallet-addr { font-size: 11px; color: #4ade80; font-family: monospace; }
+#leaderboard { max-width: 680px; width: 100%; margin-bottom: 10px; background: #1a1a2e; border: 1px solid #2a2a6e; border-radius: 8px; padding: 10px; }
+#lb-title { font-size: 11px; color: #fbbf24; letter-spacing: 2px; margin-bottom: 6px; }
+#lb-list { font-size: 11px; color: #555; font-family: monospace; line-height: 1.8; }
 #container { background: #1a1a2e; border: 2px solid #4a4a8a; border-radius: 10px; padding: 14px; max-width: 680px; width: 100%; }
 #hud { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .hp-wrap { width: 230px; }
@@ -28,12 +35,25 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
 .btn:hover { background: #2a2a6e; color: #fff; }
 .btn:active { transform: scale(0.95); background: #3a3a9e; }
 #btn-fight { color: #fbbf24; border-color: #fbbf24; background: #2a2a1e; font-weight: bold; }
+#btn-connect { color: #60a5fa; border-color: #60a5fa; }
+#btn-submit { color: #4ade80; border-color: #4ade80; display: none; }
 #hint { text-align: center; font-size: 10px; color: #333; margin-top: 6px; }
 </style>
 </head>
 <body>
 <h1>BASE FIGHTER</h1>
 <div id="subtitle">BUILT ON BASE · PIXEL BRAWLER</div>
+
+<div id="wallet-bar">
+  <button class="btn" id="btn-connect">🔗 Connect Wallet</button>
+  <span id="wallet-addr"></span>
+</div>
+
+<div id="leaderboard">
+  <div id="lb-title">🏆 ON-CHAIN LEADERBOARD</div>
+  <div id="lb-list">Connect wallet to load leaderboard...</div>
+</div>
+
 <div id="container">
   <div id="hud">
     <div class="hp-wrap">
@@ -61,6 +81,7 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
     <button class="btn" id="btn-kick">🦵 KICK [S]</button>
     <button class="btn" id="btn-block">🛡 BLOCK [D]</button>
     <button class="btn" id="btn-fight">⚔ FIGHT!</button>
+    <button class="btn" id="btn-submit">📝 Submit Score</button>
   </div>
   <div id="hint">
     ← → &nbsp;move &nbsp;|&nbsp; ↑ / Space &nbsp;jump &nbsp;|&nbsp; <span style="color:#4ade80">A</span> = punch &nbsp;|&nbsp; <span style="color:#4ade80">S</span> = kick &nbsp;|&nbsp; <span style="color:#4ade80">D</span> = block
@@ -71,6 +92,85 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const W = 640, H = 224, FLOOR = 162, GR = 0.55;
+
+// ── Contract ───────────────────────────────────────────────
+const CONTRACT_ADDRESS = '0xF3D403B94C4fee3957d331E49b83631227A1706C';
+const CONTRACT_ABI = [
+  'function recordWin() external',
+  'function wins(address) view returns (uint256)',
+  'function getTopPlayers() view returns (address[], uint256[])'
+];
+const BASE_CHAIN_ID = 8453;
+
+let provider = null, signer = null, contract = null, walletAddress = null;
+
+async function connectWallet() {
+  if (!window.ethereum) { alert('MetaMask not found!'); return; }
+  try {
+    await window.ethereum.request({ method: 'eth_requestAccounts' });
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    if (parseInt(chainId, 16) !== BASE_CHAIN_ID) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x' + BASE_CHAIN_ID.toString(16) }]
+        });
+      } catch(e) {
+        alert('Please switch to Base network in MetaMask!'); return;
+      }
+    }
+    provider = new ethers.BrowserProvider(window.ethereum);
+    signer = await provider.getSigner();
+    walletAddress = await signer.getAddress();
+    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+    const short = walletAddress.slice(0,6)+'...'+walletAddress.slice(-4);
+    document.getElementById('wallet-addr').textContent = '✅ ' + short;
+    document.getElementById('btn-connect').textContent = '✅ Connected';
+    document.getElementById('btn-connect').style.color = '#4ade80';
+    loadLeaderboard();
+  } catch(e) { console.error(e); }
+}
+
+async function loadLeaderboard() {
+  if (!contract) return;
+  try {
+    const [addrs, wins] = await contract.getTopPlayers();
+    if (addrs.length === 0) { document.getElementById('lb-list').textContent = 'No scores yet. Be the first!'; return; }
+    const entries = addrs.map((a,i) => ({ addr: a, wins: Number(wins[i]) }))
+      .sort((a,b) => b.wins - a.wins).slice(0,5);
+    document.getElementById('lb-list').innerHTML = entries.map((e,i) => {
+      const short = e.addr.slice(0,6)+'...'+e.addr.slice(-4);
+      const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'  ';
+      const isMe = walletAddress && e.addr.toLowerCase()===walletAddress.toLowerCase();
+      const color = isMe ? '#fbbf24' : '#aaa';
+      return `<div style="color:${color}">${medal} ${short} — ${e.wins} wins${isMe?' (you)':''}</div>`;
+    }).join('');
+  } catch(e) { document.getElementById('lb-list').textContent = 'Could not load leaderboard.'; }
+}
+
+async function submitScore() {
+  if (!contract) { alert('Connect wallet first!'); return; }
+  try {
+    document.getElementById('btn-submit').textContent = '⏳ Submitting...';
+    document.getElementById('btn-submit').disabled = true;
+    const tx = await contract.recordWin();
+    await tx.wait();
+    document.getElementById('btn-submit').textContent = '✅ Score Saved!';
+    setTimeout(()=>{
+      document.getElementById('btn-submit').textContent = '📝 Submit Score';
+      document.getElementById('btn-submit').disabled = false;
+    }, 3000);
+    loadLeaderboard();
+  } catch(e) {
+    console.error(e);
+    document.getElementById('btn-submit').textContent = '📝 Submit Score';
+    document.getElementById('btn-submit').disabled = false;
+    alert('Transaction failed: ' + (e.reason || e.message));
+  }
+}
+
+document.getElementById('btn-connect').addEventListener('click', connectWallet);
+document.getElementById('btn-submit').addEventListener('click', submitScore);
 
 // ── Audio ──────────────────────────────────────────────────
 let ac = null;
@@ -116,22 +216,18 @@ const stars = Array.from({length:40},(_,i)=>({ x:(i*73+11)%W, y:(i*41+7)%(FLOOR-
 function drawBG() {
   ctx.fillStyle='#0a0a1f'; ctx.fillRect(0,0,W,H);
   stars.forEach(s=>{ ctx.fillStyle=`rgba(255,255,255,${0.25+s.s*0.12})`; ctx.fillRect(s.x,s.y,s.s,s.s); });
-  // arena bg buildings
   for(let i=0;i<6;i++) {
     ctx.fillStyle=`rgba(30,30,80,${0.3+i*0.02})`;
     ctx.fillRect(30+i*105,FLOOR-55-i*8,52,55+i*8);
     ctx.fillStyle='rgba(255,220,80,0.15)';
     for(let r=0;r<3;r++) for(let c=0;c<3;c++) ctx.fillRect(38+i*105+c*14,FLOOR-48-i*8+r*16,8,10);
   }
-  // arch center
   ctx.fillStyle='rgba(60,60,160,0.2)'; ctx.fillRect(220,FLOOR-90,200,90);
   ctx.strokeStyle='rgba(100,100,220,0.5)'; ctx.lineWidth=3;
   ctx.strokeRect(228,FLOOR-90,184,90);
-  // floor
   ctx.fillStyle='#5555aa'; ctx.fillRect(0,FLOOR,W,5);
   ctx.fillStyle='#1e1e5e'; ctx.fillRect(0,FLOOR+5,W,H-FLOOR-5);
   for(let i=0;i<12;i++) { ctx.fillStyle=`rgba(80,80,180,${0.1+i*0.01})`; ctx.fillRect(i*55,FLOOR+5,28,5); }
-  // BASE logo on floor
   ctx.fillStyle='rgba(251,191,36,0.12)';
   ctx.font='bold 11px monospace'; ctx.textAlign='center';
   ctx.fillText('BASE FIGHTER', W/2, FLOOR+16);
@@ -143,36 +239,27 @@ function drawChar(c) {
   if(fl) ctx.globalAlpha=0.5;
   const bc=fl?'#fff':(c.isAI?'#f87171':'#4ade80');
   const hc=fl?'#eee':(c.isAI?'#fca5a5':'#86efac');
-  // shadow
   ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillRect(px-4,FLOOR,c.w+8,5);
-  // head
   ctx.fillStyle=hc; ctx.fillRect(px+4,py,20,18);
-  // eye
   ctx.fillStyle='#111'; ctx.fillRect(f===1?px+16:px+8,py+6,3,3);
-  // mouth
   ctx.fillStyle='#111'; ctx.fillRect(f===1?px+13:px+10,py+13,4,2);
-  // body
   ctx.fillStyle=bc; ctx.fillRect(px+2,py+18,24,22);
   ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fillRect(px+8,py+20,12,3);
-  // arms
   if(c.state==='punch') {
     ctx.fillStyle=bc; ctx.fillRect(f===1?px+26:px-10,py+22,16,8);
     ctx.fillStyle=hc; ctx.fillRect(f===1?px+40:px-12,py+21,8,9);
   } else {
     ctx.fillStyle=bc; ctx.fillRect(f===1?px-4:px+28,py+22,10,8);
   }
-  // legs
   if(!c.onGround||c.state==='jump') {
     ctx.fillStyle=bc; ctx.fillRect(px+4,py+40,10,14); ctx.fillRect(px+14,py+40,10,14);
   } else {
     ctx.fillStyle=bc; ctx.fillRect(px+4,py+40,10,20); ctx.fillRect(px+14,py+40,10,20);
   }
-  // kick leg
   if(c.state==='kick') {
     ctx.fillStyle=bc; ctx.fillRect(f===1?px+18:px-14,py+42,20,9);
     ctx.fillStyle=hc; ctx.fillRect(f===1?px+36:px-14,py+41,10,10);
   }
-  // shield
   if(c.state==='block') {
     ctx.fillStyle='rgba(96,165,250,0.45)';
     const sx=f===1?px+18:px-12; ctx.fillRect(sx,py+6,10,36);
@@ -182,8 +269,7 @@ function drawChar(c) {
 }
 
 function draw() {
-  drawBG();
-  drawChar(P); drawChar(AI);
+  drawBG(); drawChar(P); drawChar(AI);
   if(P.hitbox&&P.attackTimer>0) { ctx.fillStyle='rgba(251,191,36,0.22)'; ctx.fillRect(P.hitbox.x,P.hitbox.y,P.hitbox.w,P.hitbox.h); }
   if(AI.hitbox&&AI.attackTimer>0) { ctx.fillStyle='rgba(248,113,113,0.18)'; ctx.fillRect(AI.hitbox.x,AI.hitbox.y,AI.hitbox.w,AI.hitbox.h); }
 }
@@ -199,7 +285,6 @@ function hud() {
 
 function msg(t,d=60){ document.getElementById('msg').textContent=t; msgTimer=d; }
 
-// ── Attack ─────────────────────────────────────────────────
 function attack(c,type) {
   if(c.attackTimer>0) return;
   c.state=type; c.attackTimer=type==='punch'?14:20;
@@ -219,7 +304,6 @@ function checkHit(att,def) {
   }
 }
 
-// ── AI ─────────────────────────────────────────────────────
 let aiT=0, aiAct=null;
 function aiStep() {
   aiT--; if(aiT>0) return;
@@ -244,7 +328,6 @@ function applyAI() {
   else AI.vx+=(AI.x>P.x?-0.4:0.4);
 }
 
-// ── Physics ────────────────────────────────────────────────
 function tick(c) {
   c.x+=c.vx; c.vy+=GR; c.y+=c.vy;
   if(c.y>=FLOOR){ c.y=FLOOR; c.vy=0; c.onGround=true; if(c.state==='jump') c.state='idle'; }
@@ -256,7 +339,6 @@ function tick(c) {
   c.facing=c.x<(c.isAI?P.x:AI.x)?1:-1;
 }
 
-// ── Input ──────────────────────────────────────────────────
 const keys={};
 window.addEventListener('keydown',e=>{
   const game=['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','a','A','s','S','d','D'];
@@ -278,19 +360,23 @@ function input() {
   if(keys['d']||keys['D']){ P.state='block'; P.blockTimer=5; }
 }
 
-// ── Round end ──────────────────────────────────────────────
 function checkEnd() {
   if(P.hp>0&&AI.hp>0) return;
   running=false;
   const win=AI.hp<=0;
-  if(win){ scores[0]++; snd.win(); msg('YOU WIN! 🏆',200); }
-  else   { scores[1]++; snd.lose(); msg('CPU WINS! 😤',200); }
+  if(win){
+    scores[0]++; snd.win(); msg('YOU WIN! 🏆',200);
+    if(walletAddress) {
+      setTimeout(()=>{ document.getElementById('btn-submit').style.display='inline-block'; },500);
+    }
+  } else {
+    scores[1]++; snd.lose(); msg('CPU WINS! 😤',200);
+  }
   hud();
   setTimeout(()=>{ document.getElementById('msg').textContent='Press FIGHT for next round'; },2500);
   round++;
 }
 
-// ── Loop ───────────────────────────────────────────────────
 function loop() {
   if(!running) return;
   input(); applyAI(); tick(P); tick(AI);
@@ -303,12 +389,12 @@ function loop() {
 function fight() {
   if(raf) cancelAnimationFrame(raf);
   reset(); running=true; aiT=0; aiAct=null;
+  document.getElementById('btn-submit').style.display='none';
   audio(); msg('FIGHT!',55); loop();
 }
 
 document.getElementById('btn-fight').addEventListener('click', fight);
 
-// touch/click buttons
 function holdBtn(id,fn){
   let iv;
   const b=document.getElementById(id);
@@ -326,5 +412,6 @@ document.getElementById('btn-block').addEventListener('click',()=>{ if(running){
 
 reset(); draw(); hud();
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 </body>
 </html>
