@@ -790,7 +790,7 @@ function aiStep() {
   const d = Math.abs(AI.x-P.x), r = Math.random();
   
   // Jump logic (Special Moves)
-  const jumpChance = difficulty === 'hard' ? 0.12 : (difficulty === 'med' ? 0.05 : 0);
+  const jumpChance = difficulty === 'hard' ? 0.12 : difficulty === 'medium' ? 0.05 : 0;
   if (AI.onGround && r < jumpChance && d < 140) {
     aiAct = 'jump';
     aiT = 12;
