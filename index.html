@@ -258,16 +258,23 @@ function tick(c) {
 
 // ── Input ──────────────────────────────────────────────────
 const keys={};
-window.addEventListener('keydown',e=>{ keys[e.key]=true; e.preventDefault(); });
+window.addEventListener('keydown',e=>{
+  const game=['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','a','A','s','S','d','D'];
+  if(game.includes(e.key)) e.preventDefault();
+  if(!keys[e.key]) {
+    keys[e.key]=true;
+    if(!running) return;
+    if((e.key==='ArrowUp'||e.key===' ')&&P.onGround){ P.vy=-12; P.onGround=false; P.state='jump'; snd.jump(); }
+    if(e.key==='a'||e.key==='A'){ if(P.attackTimer<=0) attack(P,'punch'); }
+    if(e.key==='s'||e.key==='S'){ if(P.attackTimer<=0) attack(P,'kick'); }
+  }
+});
 window.addEventListener('keyup',e=>{ keys[e.key]=false; });
 
 function input() {
   if(!running) return;
   if(keys['ArrowLeft']) P.vx=-2.6;
   if(keys['ArrowRight']) P.vx=2.6;
-  if((keys['ArrowUp']||keys[' '])&&P.onGround){ P.vy=-12; P.onGround=false; P.state='jump'; snd.jump(); keys['ArrowUp']=keys[' ']=false; }
-  if((keys['a']||keys['A'])&&P.attackTimer<=0){ attack(P,'punch'); keys['a']=keys['A']=false; }
-  if((keys['s']||keys['S'])&&P.attackTimer<=0){ attack(P,'kick'); keys['s']=keys['S']=false; }
   if(keys['d']||keys['D']){ P.state='block'; P.blockTimer=5; }
 }
 
