@@ -31,21 +31,28 @@ h1 { font-size: 28px; letter-spacing: 6px; color: #fbbf24; text-shadow: 0 0 20px
 canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 4px; background: #000; }
 #msg { text-align: center; font-size: 16px; color: #fbbf24; letter-spacing: 3px; font-weight: bold; min-height: 26px; margin: 12px 0 8px; }
 
-#ctrl { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
-.btn { background: #1e1e4e; color: #aaa; border: 1px solid #3a3a7a; border-radius: 4px; padding: 10px 16px; font-size: 12px; font-family: inherit; cursor: pointer; touch-action: manipulation; transition: background 0.1s, transform 0.1s; }
+#ctrl { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-top: 10px; }
+.ctrl-group { display: flex; gap: 6px; }
+.ctrl-group.vertical { flex-direction: column; }
+.ctrl-group.grid { display: grid; grid-template-columns: 1fr 1fr; }
+.btn { background: #1e1e4e; color: #aaa; border: 1px solid #3a3a7a; border-radius: 8px; padding: 12px; font-size: 14px; font-family: inherit; cursor: pointer; touch-action: manipulation; transition: background 0.1s, transform 0.1s; display: flex; align-items: center; justify-content: center; min-width: 50px; min-height: 50px; }
 .btn:hover { background: #2a2a6e; color: #fff; }
-.btn:active { transform: scale(0.95); background: #3a3a9e; }
-#btn-fight { color: #fbbf24; border-color: #fbbf24; background: #2a2a1e; font-weight: bold; min-width: 120px; }
+.btn:active { transform: scale(0.92); background: #3a3a9e; }
+#btn-fight { color: #fbbf24; border-color: #fbbf24; background: #2a2a1e; font-weight: bold; padding: 10px 20px; font-size: 14px; height: 50px; }
+@media (max-width: 500px) {
+    #ctrl { padding: 0 10px; }
+    .btn { padding: 8px; min-width: 44px; min-height: 44px; font-size: 12px; }
+}
 
 /* Leaderboard Modal */
 #leaderboard-modal { position: absolute; inset: 0; background: rgba(10, 10, 31, 0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; border-radius: 10px; padding: 20px; text-align: center; }
 .lb-table { width: 100%; max-width: 400px; margin: 20px 0; border-collapse: collapse; }
 .lb-table th { color: #fbbf24; border-bottom: 1px solid #4a4a8a; padding: 8px; font-size: 12px; }
 .lb-table td { padding: 8px; color: #ccc; font-size: 11px; border-bottom: 1px solid #222; }
-.lb-row { animation: fadeInSlide 0.4s ease-out forwards; opacity: 0; }
+.lb-row { animation: fadeInSlide 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
 @keyframes fadeInSlide {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(15px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .close-lb { background: #4a4a8a; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; margin-top: 10px; }
 
@@ -61,6 +68,15 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
 <div id="container">
   <div id="top-bar">
     <button id="show-lb-btn" class="btn" style="padding: 4px 10px; font-size: 10px;">🏆 RANKINGS</button>
+    
+    <div id="settings" style="display: flex; gap: 12px; align-items: center;">
+      <div id="diff-container" style="display: flex; background: rgba(0,0,0,0.4); border: 1px solid #4a4a8a; border-radius: 4px; padding: 2px;">
+        <button class="diff-btn" data-diff="easy" style="background:transparent; border:none; color:#666; font-size:9px; font-family:monospace; padding:2px 8px; cursor:pointer;">EASY</button>
+        <button class="diff-btn active" data-diff="medium" style="background:#4a4a8a; border:none; color:#fff; font-size:9px; font-family:monospace; padding:2px 8px; cursor:pointer; border-radius:2px;">MED</button>
+        <button class="diff-btn" data-diff="hard" style="background:transparent; border:none; color:#666; font-size:9px; font-family:monospace; padding:2px 8px; cursor:pointer;">HARD</button>
+      </div>
+    </div>
+
     <div id="wallet-area">
       <button id="wallet-btn">CONNECT WALLET</button>
       <span id="wallet-address"></span>
@@ -77,7 +93,7 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
       <div id="score-label">0 — 0</div>
     </div>
     <div class="hp-wrap right">
-      <div class="hp-label" style="text-align:right">CPU</div>
+      <div class="hp-label" style="text-align:right" id="p2-name">CPU</div>
       <div class="hp-bar"><div class="hp-fill" id="a-hp" style="width:100%"></div></div>
     </div>
   </div>
@@ -85,28 +101,40 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
   <canvas id="c" width="640" height="224"></canvas>
   <div id="msg">PRESS FIGHT TO START</div>
 
+  <div id="ctrl-hints" style="display: flex; justify-content: center; font-size: 9px; color: #4a4a8a; margin-bottom: 4px; padding: 0 4px;">
+    <span>Arrows: Move | W: Jump | A: Punch | S: Kick | D: Block</span>
+  </div>
+
   <div id="ctrl">
-    <button class="btn" id="btn-left">◀ LEFT</button>
-    <button class="btn" id="btn-right">RIGHT ▶</button>
-    <button class="btn" id="btn-jump">▲ JUMP [↑]</button>
-    <button class="btn" id="btn-punch">👊 PUNCH [A]</button>
-    <button class="btn" id="btn-kick">🦵 KICK [S]</button>
-    <button class="btn" id="btn-block">🛡 BLOCK [D]</button>
-    <button class="btn" id="btn-fight">⚔ FIGHT!</button>
+    <div class="ctrl-group">
+      <button class="btn" id="btn-left" title="Move Left">◀</button>
+      <button class="btn" id="btn-right" title="Move Right">▶</button>
+    </div>
+    
+    <div class="ctrl-group">
+      <button class="btn" id="btn-fight">⚔ FIGHT!</button>
+    </div>
+
+    <div class="ctrl-group grid">
+      <button class="btn" id="btn-jump" title="Jump (W)">▲</button>
+      <button class="btn" id="btn-punch" title="Punch (A)">👊</button>
+      <button class="btn" id="btn-kick" title="Kick (S)">🦵</button>
+      <button class="btn" id="btn-block" title="Block (D)">🛡</button>
+    </div>
   </div>
   
   <div id="leaderboard-modal">
-    <h3>LEADERBOARD</h3>
+    <h3>BASE CHAMPIONS</h3>
     <table class="lb-table">
         <thead>
             <tr>
                 <th>RANK</th>
                 <th>PLAYER</th>
-                <th>WINS</th>
+                <th>MATCH WINS</th>
             </tr>
         </thead>
         <tbody id="lb-body">
-            <tr><td colspan="3">LOADING...</td></tr>
+            <tr class="lb-row"><td></td><td>LOADING...</td><td></td></tr>
         </tbody>
     </table>
     <button id="close-lb-btn" class="close-lb">CLOSE</button>
@@ -119,7 +147,7 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
 <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
-import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, getDocs, serverTimestamp, increment } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
 let db;
 let userAddress = null;
@@ -180,19 +208,13 @@ function updateWalletUI() {
     }
 }
 
-async function updateLeaderboardScore(wins) {
+async function updateLeaderboardScore() {
     if (!userAddress || !db) return;
     try {
         const docRef = doc(db, 'leaderboard', userAddress);
-        const docSnap = await getDoc(docRef);
-        let totalWins = wins;
-        if (docSnap.exists()) {
-            totalWins += (docSnap.data().wins || 0);
-        }
-        
         await setDoc(docRef, {
             address: userAddress,
-            wins: totalWins,
+            wins: increment(1),
             updatedAt: serverTimestamp()
         }, { merge: true });
         
@@ -224,11 +246,11 @@ async function loadLeaderboard() {
             lbBody.appendChild(row);
         });
         if (rank === 1) {
-            lbBody.innerHTML = '<tr><td colspan="3">NO SCORES YET</td></tr>';
+            lbBody.innerHTML = '<tr class="lb-row"><td></td><td>NO SCORES YET</td><td></td></tr>';
         }
     } catch (err) {
         console.error("Error loading leaderboard", err);
-        lbBody.innerHTML = '<tr><td colspan="3">ERROR LOADING</td></tr>';
+        lbBody.innerHTML = '<tr class="lb-row"><td></td><td>ERROR LOADING</td><td></td></tr>';
     }
 }
 
@@ -267,11 +289,33 @@ const snd = {
   hurt:  () => { beep(220,0.18,'sawtooth',0.3,-200); },
   jump:  () => { beep(300,0.1,'sine',0.08); },
   win:   () => { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.18,'square',0.15),i*120)); },
-  lose:  () => { [300,250,200,150].forEach((f,i)=>setTimeout(()=>beep(f,0.2,'sawtooth',0.15),i*130)); }
+  lose:  () => { [300,250,200,150].forEach((f,i)=>setTimeout(()=>beep(f,0.2,'sawtooth',0.15),i*130)); },
+  ko:    () => { [100,150,100,200,50].forEach((f,i)=>setTimeout(()=>beep(f,0.4,'sawtooth',0.2),i*100)); }
 };
 
 // State
-let P, AI, running=false, round=1, scores=[0,0], raf, msgTimer=0;
+let P, AI, running=false, round=1, scores=[0,0], raf, msgTimer=0, slowMo=0, shake=0;
+let difficulty = 'medium';
+
+const DIFF_SETTINGS = {
+  easy:   { react: [40, 80], block: 0.05, agg: 0.3,  speed: 0.4 },
+  medium: { react: [18, 45], block: 0.12, agg: 0.45, speed: 0.6 },
+  hard:   { react: [8, 22],  block: 0.25, agg: 0.65, speed: 0.8 }
+};
+
+document.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.onclick = () => {
+        document.querySelectorAll('.diff-btn').forEach(b => {
+             b.classList.remove('active');
+             b.style.background = 'transparent';
+             b.style.color = '#666';
+        });
+        btn.classList.add('active');
+        btn.style.background = '#4a4a8a';
+        btn.style.color = '#fff';
+        difficulty = btn.dataset.diff;
+    };
+});
 
 function mkChar(x, facing, isAI) {
   return { x, y:FLOOR, vx:0, vy:0, w:28, h:48,
@@ -282,6 +326,7 @@ function mkChar(x, facing, isAI) {
 function reset() {
   P  = mkChar(80,  1, false);
   AI = mkChar(560,-1, true);
+  if (scores[0] === 0 && scores[1] === 0) round = 1;
   draw();
 }
 
@@ -289,6 +334,8 @@ function reset() {
 const stars = Array.from({length:40},(_,i)=>({ x:(i*73+11)%W, y:(i*41+7)%(FLOOR-30), s:(i%3)+1 }));
 
 function drawBG() {
+  ctx.save();
+  if(shake > 0) ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
   ctx.fillStyle='#0a0a0f'; ctx.fillRect(0,0,W,H);
   stars.forEach(s=>{ ctx.fillStyle=`rgba(255,255,255,${0.25+s.s*0.12})`; ctx.fillRect(s.x,s.y,s.s,s.s); });
   for(let i=0;i<6;i++) {
@@ -306,6 +353,7 @@ function drawBG() {
   ctx.fillStyle='rgba(251,191,36,0.12)';
   ctx.font='bold 11px monospace'; ctx.textAlign='center';
   ctx.fillText('BASE FIGHTER', W/2, FLOOR+16);
+  ctx.restore();
 }
 
 function drawChar(c) {
@@ -320,6 +368,7 @@ function drawChar(c) {
   }
 
   ctx.save();
+  if(shake > 0) ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
   if(fl) ctx.globalAlpha=0.6;
   const bc=fl?'#fff':(c.isAI?'#f87171':'#4ade80');
   const hc=fl?'#eee':(c.isAI?'#fca5a5':'#86efac');
@@ -355,8 +404,23 @@ function drawChar(c) {
 function draw() {
   drawBG();
   drawChar(P); drawChar(AI);
-  if(P.hitbox&&P.attackTimer>0) { ctx.fillStyle='rgba(251,191,36,0.22)'; ctx.fillRect(P.hitbox.x,P.hitbox.y,P.hitbox.w,P.hitbox.h); }
-  if(AI.hitbox&&AI.attackTimer>0) { ctx.fillStyle='rgba(248,113,113,0.18)'; ctx.fillRect(AI.hitbox.x,AI.hitbox.y,AI.hitbox.w,AI.hitbox.h); }
+  if(slowMo > 0) {
+    // Dramatic strobe effect
+    const strobe = (slowMo % 4 < 2);
+    ctx.fillStyle = strobe ? 'rgba(255, 255, 255, 0.4)' : 'rgba(239, 68, 68, 0.2)';
+    ctx.fillRect(0, 0, W, H);
+    
+    // Impactful K.O. Text
+    ctx.save();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'italic bold 100px Courier New';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#f59e0b';
+    ctx.shadowBlur = 25;
+    // Jittery movement
+    ctx.fillText('K.O.', W/2 + (Math.random()-0.5)*20, H/2 + 30);
+    ctx.restore();
+  }
 }
 
 function hud() {
@@ -371,7 +435,7 @@ function hud() {
 function msg(t,d=60){ document.getElementById('msg').textContent=t; msgTimer=d; }
 
 function attack(c,type) {
-  if(c.attackTimer>0) return;
+  if(c.attackTimer>0 || slowMo > 0 || c.state === 'block') return;
   c.state=type; c.attackTimer=type==='punch'?14:20;
   const reach=type==='punch'?58:68, dmg=type==='punch'?8:13;
   const hx=c.facing===1?c.x+8:c.x-reach-8;
@@ -383,11 +447,20 @@ function checkHit(att,def) {
   if(!att.hitbox||att.attackTimer<=0||def.invincible>0) return;
   const hb=att.hitbox,dx=def.x-def.w/2,dy=def.y-def.h;
   if(hb.x<dx+def.w&&hb.x+hb.w>dx&&hb.y<dy+def.h&&hb.y+hb.h>dy){
-    if(def.state==='block'){ def.hp-=Math.ceil(hb.dmg*0.12); snd.block(); msg('BLOCKED!',40); }
+    if(def.state==='block'){ 
+      snd.block(); msg('BLOCKED!',40); 
+      // Slight pushback even when blocking so you can't just stand still
+      def.vx = (att.x < def.x ? 2.5 : -2.5);
+    }
     else{ 
       def.hp-=hb.dmg; def.hitFlash=10; snd.hurt(); 
       // Add slight horizontal knockback
       def.vx = (att.x < def.x ? 5 : -5);
+      if (def.hp <= 0) {
+        slowMo = 100; // ~1.6 seconds of dramatic slow-mo
+        shake = 40;   // Powerful screen shake
+        snd.ko();
+      }
       msg(att.isAI?'CPU HIT! -'+hb.dmg:'NICE HIT! +'+hb.dmg,45); 
     }
     att.hitbox=null; def.invincible=18; hud();
@@ -397,28 +470,31 @@ function checkHit(att,def) {
 let aiT=0, aiAct=null;
 function aiStep() {
   aiT--; if(aiT>0) return;
-  aiT=18+Math.floor(Math.random()*28);
-  const d=Math.abs(AI.x-P.x), r=Math.random();
+  const s = DIFF_SETTINGS[difficulty];
+  aiT = s.react[0] + Math.floor(Math.random() * (s.react[1] - s.react[0]));
+  const d = Math.abs(AI.x-P.x), r = Math.random();
+  
   if(d>130) aiAct='move';
-  else if(r<0.08){ aiAct='block'; aiT=22; }
-  else if(r<0.45) aiAct='punch';
-  else if(r<0.75) aiAct='kick';
-  else if(r<0.85) aiAct='jump';
+  else if(r < s.block){ aiAct='block'; aiT=22; }
+  else if(r < s.agg * 0.7) aiAct='punch';
+  else if(r < s.agg) aiAct='kick';
+  else if(r < s.agg + 0.1 && difficulty === 'hard') aiAct='jump';
   else aiAct='move';
 }
 function applyAI() {
-  if(!running) return;
+  if(!running || slowMo > 0 || !AI.isAI) return;
   aiStep();
-  const d=Math.abs(AI.x-P.x);
-  if(aiAct==='move') AI.vx+=(AI.x>P.x?-0.6:0.6);
+  const s = DIFF_SETTINGS[difficulty];
+  const d = Math.abs(AI.x-P.x);
+  if(aiAct==='move') AI.vx+=(AI.x>P.x?-s.speed:s.speed);
   else if(aiAct==='block'){ AI.state='block'; AI.blockTimer=22; AI.vx=0; }
   else if(aiAct==='punch'&&d<85&&AI.attackTimer<=0) attack(AI,'punch');
   else if(aiAct==='kick'&&d<95&&AI.attackTimer<=0) attack(AI,'kick');
   else if(aiAct==='jump'&&AI.onGround){ AI.vy=-12; AI.onGround=false; snd.jump(); }
-  else AI.vx+=(AI.x>P.x?-0.4:0.4);
 }
 
 function tick(c) {
+  if (slowMo > 0 && slowMo % 2 !== 0) return;
   c.x+=c.vx; c.vy+=GR; c.y+=c.vy;
   if(c.y>=FLOOR){ c.y=FLOOR; c.vy=0; c.onGround=true; if(c.state==='jump') c.state='idle'; }
   c.x=Math.max(22,Math.min(W-22,c.x)); c.vx*=0.75;
@@ -432,19 +508,18 @@ function tick(c) {
 const keys={};
 window.addEventListener('keydown',e=>{
   const c = e.code;
-  const gameCodes = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','KeyA','KeyS','KeyD','KeyW'];
+  const gameCodes = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','KeyA','KeyS','KeyD','KeyW','KeyQ','KeyE'];
   if(gameCodes.includes(c)) e.preventDefault();
   
   if(!keys[c]) {
     keys[c]=true;
-    if(!running) return;
+    if(!running || slowMo > 0) return;
     
-    // Jump: W, Up, Space
-    if((c==='KeyW' || c==='ArrowUp' || c==='Space') && P.onGround){ 
+    // Jump: W or Space
+    if((c==='KeyW' || c==='Space') && P.onGround){ 
         P.vy=-12; P.onGround=false; P.state='jump'; snd.jump(); 
     }
-    
-    // Attacks: KeyA (Punch), KeyS (Kick)
+    // Actions
     if(c==='KeyA'){ if(P.attackTimer<=0) attack(P,'punch'); }
     if(c==='KeyS'){ if(P.attackTimer<=0) attack(P,'kick'); }
   }
@@ -452,32 +527,48 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{ keys[e.code]=false; });
 
 function input() {
-  if(!running) return;
-  // Movement: Arrow keys or specific movement codes if defined
+  if(!running || slowMo > 0) return;
+  // Movement: Arrow Keys only
   if(keys['ArrowLeft']) P.vx=-2.6;
   if(keys['ArrowRight']) P.vx=2.6;
-  // Block: KeyD
-  if(keys['KeyD']){ P.state='block'; P.blockTimer=5; }
+  // Block: D key
+  if(keys['KeyD'] && P.attackTimer <= 0){ 
+    P.state='block'; P.blockTimer=5; 
+  }
 }
 
 function checkEnd() {
   if(P.hp>0&&AI.hp>0) return;
+  if(slowMo > 0) return;
+
   running=false;
   const win=AI.hp<=0;
-  if(win){ 
-    scores[0]++; snd.win(); msg('YOU WIN! 🏆',200); 
-    if (userAddress) {
-        updateLeaderboardScore(1);
-    }
-  }
-  else { scores[1]++; snd.lose(); msg('CPU WINS! 😤',200); }
+
+  if(win){ scores[0]++; snd.win(); msg('YOU WIN ROUND! 🏆', 120); }
+  else   { scores[1]++; snd.lose(); msg('CPU WINS ROUND! 😤', 120); }
+  
   hud();
-  setTimeout(()=>{ document.getElementById('msg').textContent='Press FIGHT for next round'; },2500);
-  round++;
+
+  if (scores[0] >= 2 || scores[1] >= 2) {
+      const matchWin = scores[0] >= 2;
+      
+      setTimeout(() => {
+          msg(matchWin ? '🏆 YOU ARE CHAMPION! 🏆' : '💀 CPU IS CHAMPION 💀', 300);
+          if (matchWin && userAddress) updateLeaderboardScore();
+          scores = [0, 0];
+          round = 1;
+      }, 800); 
+  } else {
+      round++;
+      setTimeout(() => { msg('READY FOR ROUND ' + round + '?', 300); }, 800);
+  }
 }
 
 function loop() {
   if(!running) return;
+  if(slowMo > 0) slowMo--;
+  if(shake > 0) shake--;
+  
   input(); applyAI(); tick(P); tick(AI);
   checkHit(P,AI); checkHit(AI,P); checkEnd();
   if(msgTimer>0){ msgTimer--; if(msgTimer===0) document.getElementById('msg').textContent=''; }
@@ -490,7 +581,7 @@ function fight() {
   // Clear any stuck keys
   for(let k in keys) keys[k] = false;
   
-  reset(); running=true; aiT=0; aiAct=null;
+  reset(); running=true; aiT=0; aiAct=null; slowMo=0; shake=0;
   const a = audio();
   if (a.state === 'suspended') a.resume();
   
@@ -508,12 +599,12 @@ function holdBtn(id,fn){
   b.addEventListener('touchstart',e=>{e.preventDefault();fn();iv=setInterval(fn,80);},{passive:false});
   b.addEventListener('touchend',()=>clearInterval(iv));
 }
-holdBtn('btn-left', ()=>{ if(running) P.vx=-2.6; });
-holdBtn('btn-right',()=>{ if(running) P.vx=2.6; });
-document.getElementById('btn-jump').addEventListener('click',()=>{ if(running&&P.onGround){P.vy=-12;P.onGround=false;P.state='jump';snd.jump();} });
-document.getElementById('btn-punch').addEventListener('click',()=>{ if(running&&P.attackTimer<=0) attack(P,'punch'); });
-document.getElementById('btn-kick').addEventListener('click', ()=>{ if(running&&P.attackTimer<=0) attack(P,'kick'); });
-document.getElementById('btn-block').addEventListener('click',()=>{ if(running){P.state='block';P.blockTimer=10;} });
+holdBtn('btn-left', ()=>{ if(running && slowMo===0) P.vx=-2.6; });
+holdBtn('btn-right',()=>{ if(running && slowMo===0) P.vx=2.6; });
+document.getElementById('btn-jump').addEventListener('click',()=>{ if(running&&P.onGround&&slowMo===0){P.vy=-12;P.onGround=false;P.state='jump';snd.jump();} });
+document.getElementById('btn-punch').addEventListener('click',()=>{ if(running&&P.attackTimer<=0&&slowMo===0) attack(P,'punch'); });
+document.getElementById('btn-kick').addEventListener('click', ()=>{ if(running&&P.attackTimer<=0&&slowMo===0) attack(P,'kick'); });
+document.getElementById('btn-block').addEventListener('click',()=>{ if(running&&slowMo===0){P.state='block';P.blockTimer=10;} });
 
 reset(); draw(); hud();
 </script>
