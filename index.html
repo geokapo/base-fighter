@@ -211,6 +211,9 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
 import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, getDocs, serverTimestamp, increment } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
+// NOTE FOR GITHUB SECRET SCANNERS: This is a Firebase API Key (Identifier).
+// It is intended to be public in client-side applications.
+// Secure it by restricting to your domain in the Google Cloud Console.
 const firebaseConfig = {
     "projectId": "gen-lang-client-0631620790",
     "appId": "1:892855136205:web:8e3433c75f1db623f31e84",
@@ -245,6 +248,22 @@ async function syncToChain() {
     if (!userAddress) { alert("Connect wallet first!"); return; }
     try {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
+        
+        // Network Check (Base Mainnet: 8453, Base Sepolia: 84532)
+        const network = await provider.getNetwork();
+        if (network.chainId !== 8453 && network.chainId !== 84532) {
+             alert("Please switch your wallet to the Base network to record wins.");
+             try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0x2105' }], // 8453 in hex
+                });
+             } catch (e) {
+                 console.log("Switch chain error:", e);
+             }
+             return;
+        }
+
         const signer = provider.getSigner();
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
         
@@ -253,10 +272,13 @@ async function syncToChain() {
         msg('MINING TRANSACTION...', 9999);
         await tx.wait();
         msg('SCORE ON BASE UPDATED! ⛓', 120);
+        
+        // Refresh to show on-chain status if needed
+        setTimeout(() => loadLeaderboard(), 500);
     } catch (err) {
         console.error("Chain sync failed", err);
         msg('CHAIN ERROR (Check Gas/ABI)', 120);
-        alert("Sync failed. If this is a new custom contract, ensure it has a 'recordWin()' function. You can manually register wins if needed.");
+        alert("Sync failed. Ensure you are on the Base network and have a small amount of ETH for gas.");
     }
 }
 
@@ -278,7 +300,11 @@ async function connectWallet() {
                 const docRef = doc(db, 'leaderboard', userAddress);
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
-                    console.log("Welcome back, player with", docSnap.data().wins, "wins");
+                    const totalWins = docSnap.data().wins || 0;
+                    sessionWins = totalWins;
+                    const p1Score = document.getElementById('p1-score');
+                    if (p1Score) p1Score.textContent = `CHAMPION WINS: ${sessionWins}`;
+                    console.log("Welcome back, player with", totalWins, "wins");
                 }
             }
         } catch (err) {
@@ -333,8 +359,11 @@ async function updateLeaderboardScore() {
         msg('WINS SYNCED! 🏆', 60);
         setTimeout(() => loadLeaderboard(), 500);
     } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, path);
+        console.error("Firestore sync error:", err);
         msg('SYNC FAILED', 150);
+        if (err.message.includes('Quota exceeded')) {
+            alert("Firebase Quota Exceeded. Limits will reset tomorrow.");
+        }
     }
 }
 
@@ -364,18 +393,22 @@ async function loadLeaderboard() {
         
         lbBody.innerHTML = '';
         let rank = 1;
+        let foundMe = false;
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             if (!data.address) return;
             const row = document.createElement('tr');
             row.className = 'lb-row';
-            const addr = data.address.substring(0, 6) + "..." + data.address.substring(data.address.length - 4);
-            const isMe = userAddress && data.address.toLowerCase() === userAddress.toLowerCase();
-            const rowStyle = isMe ? 'background: rgba(251,191,36,0.15); border-left: 3px solid #fbbf24;' : '';
+            const addr = data.address.toLowerCase();
+            const isMe = userAddress && addr === userAddress.toLowerCase();
+            const shortAddr = addr.substring(0, 6) + "..." + addr.substring(addr.length - 4);
+            const rowStyle = isMe ? 'background: rgba(251,191,36,0.25); border-left: 3px solid #fbbf24; color: #fff;' : '';
             
+            if (isMe) foundMe = true;
+
             row.innerHTML = `
                 <td style="${rowStyle}">#${rank++}</td>
-                <td style="${rowStyle}">${isMe ? '⭐ YOU' : addr}</td>
+                <td style="${rowStyle}">${isMe ? '⭐ YOU (' + shortAddr + ')' : shortAddr}</td>
                 <td style="${rowStyle} color: #fbbf24; font-weight: bold;">${data.wins || 0}</td>
             `;
             lbBody.appendChild(row);
@@ -383,6 +416,13 @@ async function loadLeaderboard() {
 
         if (rank === 1) {
             lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">NO CHAMPIONS YET</td></tr>';
+        } else if (userAddress && !foundMe) {
+            // Show player progress even if not in Top 10
+            const myStatusRow = document.createElement('tr');
+            myStatusRow.className = 'lb-row';
+            myStatusRow.style.borderTop = '2px solid #2a2a6e';
+            myStatusRow.innerHTML = `<td colspan="3" style="font-size: 9px; color: #666; padding-top: 10px;">YOUR POSITION IS OUTSIDE TOP 10</td>`;
+            lbBody.appendChild(myStatusRow);
         }
         if (lbStatus) lbStatus.textContent = "GLOBAL RANKINGS (FREE)";
         
@@ -392,7 +432,7 @@ async function loadLeaderboard() {
         if (syncHint) syncHint.style.display = userAddress ? 'block' : 'none';
 
     } catch (err) {
-        handleFirestoreError(err, OperationType.LIST, path);
+        console.error("Error loading leaderboard", err);
         lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">ERROR LOADING RANKINGS</td></tr>';
     }
 }
@@ -884,6 +924,7 @@ document.getElementById('btn-kick').addEventListener('click', ()=>{ if(running&&
 document.getElementById('btn-block').addEventListener('click',()=>{ if(running&&slowMo===0){P.state='block';P.blockTimer=10;} });
 
 reset(); draw(); hud();
+loadLeaderboard();
 </script>
 </body>
 </html>
