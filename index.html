@@ -265,7 +265,7 @@ async function syncToChain() {
         
         msg('PENDING CHAIN SYNC...', 9999);
         // Estimate gas to be safe
-        const tx = await contract.recordWin({    gasLimit: 120000,   customData: { paymasterParams: null },   type: 0 });
+        const tx = await contract.recordWin({ gasLimit: 120000 });
         msg('MINING TRANSACTION...', 9999);
         await tx.wait();
         msg('SCORE ON BASE UPDATED! ⛓', 120);
