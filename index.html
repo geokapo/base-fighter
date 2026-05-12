@@ -243,22 +243,34 @@ const CONTRACT_ABI = [
 async function syncToChain() {
     if (!userAddress) { alert("Connect wallet first!"); return; }
     try {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        
-        // Network Check (Base Mainnet: 8453, Base Sepolia: 84532)
-        const network = await provider.getNetwork();
-        if (network.chainId !== 8453 && network.chainId !== 84532) {
-             alert("Please switch your wallet to the Base network to record wins.");
-             try {
-                await window.ethereum.request({
-                    method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: '0x2105' }], // 8453 in hex
-                });
-             } catch (e) {
-                 console.log("Switch chain error:", e);
-             }
-             return;
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (parseInt(chainId, 16) !== 8453) {
+            try {
+                await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x2105' }] });
+            } catch(e) { alert("Please switch to Base network!"); return; }
         }
+        const data = '0x4e4515e8';
+        msg('PENDING CHAIN SYNC...', 9999);
+        const txHash = await window.ethereum.request({
+            method: 'eth_sendTransaction',
+            params: [{ from: userAddress, to: CONTRACT_ADDRESS, data: data, gas: '0x1D4C0' }]
+        });
+        msg('MINING TRANSACTION...', 9999);
+        const checkReceipt = async () => {
+            const receipt = await window.ethereum.request({ method: 'eth_getTransactionReceipt', params: [txHash] });
+            if (receipt) { msg('SCORE ON BASE UPDATED! ⛓', 120); alert("Success! Your win is on Base!"); }
+            else setTimeout(checkReceipt, 2000);
+        };
+        checkReceipt();
+    } catch (err) {
+        console.error("Chain sync failed", err);
+        let errorMsg = "Blockchain Sync Failed.";
+        if (err.message && err.message.includes('insufficient funds')) errorMsg = "Not enough ETH for gas on Base.";
+        else if (err.message && err.message.includes('user rejected')) errorMsg = "Transaction rejected.";
+        msg('CHAIN ERROR', 120);
+        alert(errorMsg);
+    }
+}
 
         const signer = provider.getSigner();
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
