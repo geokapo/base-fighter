@@ -296,6 +296,7 @@ async function connectWallet() {
             const accounts = await provider.request({ method: 'eth_requestAccounts' });
             userAddress = accounts[0].toLowerCase();
             updateWalletUI();
+            loadLeaderboard(); // Refresh to highlight 'YOU'
             if (db) {
                 const docRef = doc(db, 'leaderboard', userAddress);
                 const docSnap = await getDoc(docRef);
@@ -394,6 +395,8 @@ async function loadLeaderboard() {
         lbBody.innerHTML = '';
         let rank = 1;
         let foundMe = false;
+        let myData = null;
+
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             if (!data.address) return;
@@ -404,7 +407,10 @@ async function loadLeaderboard() {
             const shortAddr = addr.substring(0, 6) + "..." + addr.substring(addr.length - 4);
             const rowStyle = isMe ? 'background: rgba(251,191,36,0.25); border-left: 3px solid #fbbf24; color: #fff;' : '';
             
-            if (isMe) foundMe = true;
+            if (isMe) {
+                foundMe = true;
+                myData = { wins: data.wins, rank: rank };
+            }
 
             row.innerHTML = `
                 <td style="${rowStyle}">#${rank++}</td>
@@ -417,12 +423,32 @@ async function loadLeaderboard() {
         if (rank === 1) {
             lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">NO CHAMPIONS YET</td></tr>';
         } else if (userAddress && !foundMe) {
-            // Show player progress even if not in Top 10
-            const myStatusRow = document.createElement('tr');
-            myStatusRow.className = 'lb-row';
-            myStatusRow.style.borderTop = '2px solid #2a2a6e';
-            myStatusRow.innerHTML = `<td colspan="3" style="font-size: 9px; color: #666; padding-top: 10px;">YOUR POSITION IS OUTSIDE TOP 10</td>`;
-            lbBody.appendChild(myStatusRow);
+            // Fetch personal stats if not in Top 10 to show rank accurately
+            try {
+                const myDoc = await getDoc(doc(db, 'leaderboard', userAddress.toLowerCase()));
+                if (myDoc.exists()) {
+                    const data = myDoc.data();
+                    const row = document.createElement('tr');
+                    row.className = 'lb-row';
+                    row.style.borderTop = '2px solid #2a2a6e';
+                    row.style.marginTop = '10px';
+                    const addr = data.address.toLowerCase();
+                    const shortAddr = addr.substring(0, 6) + "..." + addr.substring(addr.length - 4);
+                    const rowStyle = 'background: rgba(251,191,36,0.1); border-left: 3px solid #fbbf24; color: #fff;';
+                    
+                    row.innerHTML = `
+                        <td style="${rowStyle}">OFF-LIST</td>
+                        <td style="${rowStyle}">⭐ YOU (${shortAddr})</td>
+                        <td style="${rowStyle} color: #fbbf24; font-weight: bold;">${data.wins || 0}</td>
+                    `;
+                    lbBody.appendChild(row);
+                } else {
+                    const myStatusRow = document.createElement('tr');
+                    myStatusRow.className = 'lb-row';
+                    myStatusRow.innerHTML = `<td colspan="3" style="font-size: 9px; color: #666; padding-top: 10px;">PLAY A ROUND TO JOIN THE RANKINGS</td>`;
+                    lbBody.appendChild(myStatusRow);
+                }
+            } catch(e) { console.log("Personal rank error", e); }
         }
         if (lbStatus) lbStatus.textContent = "GLOBAL RANKINGS (FREE)";
         
