@@ -8,6 +8,10 @@ A retro pixel art fighting game built on Base. Single player vs AI, fully browse
 
 **[▶ Live Demo](https://base-fighter.vercel.app)**
 
+## 🛡️ Security & GitHub Alerts
+If you upload this to GitHub, you will likely get a "Secret Leak" alert. **This is normal for Firebase.**
+- **The Fix**: Go to [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials), edit your API key, and add a **Website Restriction** for your domain (e.g., `your-app.vercel.app/*`). This prevents others from using your billable resources.
+
 ## Controls
 
 | Action | Key |
@@ -23,21 +27,19 @@ Mobile touch buttons included.
 
 ## Features
 
+- **Global Leaderboard**: Cross-session rankings powered by Firebase.
+- **Blockchain Sync**: Record your wins permanently on the Base Chain.
 - Pixel art characters & arena
 - Player vs AI with adaptive difficulty
 - Health bars + round system + score tracker
-- Sound effects (Web Audio API)
-- Block mechanic (reduces damage)
-- Mobile friendly (touch controls)
 - Zero dependencies — single `index.html`
 
 ## Built With
 
-- HTML5 Canvas
-- Vanilla JavaScript
-- Web Audio API
+- HTML5 Canvas & Vanilla JavaScript
+- Firebase (Leaderboard)
+- Ethers.js (Base Chain)
 - Deployed on [Vercel](https://vercel.com)
-- Registered on [Base](https://base.dev) via Builder Code
 
 ## 🔵 Base Integration
 
@@ -47,7 +49,7 @@ Builder Code tracks engagement and qualifies for [Base Builder Rewards](https://
 ## Run Locally
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/base-fighter
+git clone https://github.com/georgiakapodistria/base-fighter
 cd base-fighter
 # open index.html in your browser
 ```
