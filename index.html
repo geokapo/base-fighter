@@ -31,20 +31,24 @@ h1 { font-size: 28px; letter-spacing: 6px; color: #fbbf24; text-shadow: 0 0 20px
 canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 4px; background: #000; }
 #msg { text-align: center; font-size: 16px; color: #fbbf24; letter-spacing: 3px; font-weight: bold; min-height: 26px; margin: 12px 0 8px; }
 
-#ctrl { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-top: 15px; padding: 0 5px; }
+#ctrl { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-top: 20px; padding: 0 10px; width: 100%; position: relative; }
+.ctrl-zone { display: flex; flex-direction: column; gap: 8px; }
 .ctrl-group { display: flex; gap: 8px; }
 .ctrl-group.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.btn { background: #1e1e4e; color: #aaa; border: 2px solid #3a3a7a; border-radius: 12px; padding: 14px; font-size: 16px; font-family: inherit; cursor: pointer; touch-action: manipulation; transition: background 0.1s, transform 0.1s; display: flex; align-items: center; justify-content: center; min-width: 60px; min-height: 60px; box-shadow: 0 4px 0 #0f0f2d; }
+.btn { background: #1e1e4e; color: #aaa; border: 2px solid #3a3a7a; border-radius: 14px; padding: 14px; font-size: 18px; font-family: inherit; cursor: pointer; touch-action: manipulation; transition: background 0.1s, transform 0.1s; display: flex; align-items: center; justify-content: center; min-width: 65px; min-height: 65px; box-shadow: 0 5px 0 #0f0f2d; position: relative; }
+.btn::after { position: absolute; bottom: 4px; font-size: 8px; opacity: 0.4; content: attr(data-key); }
 .btn:hover { background: #2a2a6e; color: #fff; }
 .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #0f0f2d; background: #3a3a9e; }
-#btn-fight { color: #fbbf24; border-color: #fbbf24; background: #2a2a1e; font-weight: bold; padding: 10px 20px; font-size: 15px; height: 60px; min-width: 100px; box-shadow: 0 4px 0 #1a1a0a; }
-#btn-fight:active { transform: translateY(2px); box-shadow: 0 2px 0 #1a1a0a; }
+#btn-fight { color: #fbbf24; border-color: #fbbf24; background: #2a2a1e; font-weight: bold; padding: 10px 20px; font-size: 16px; height: 60px; min-width: 120px; box-shadow: 0 4px 0 #1a1a0a; border-radius: 10px; margin-bottom: 5px; }
+
 @media (max-width: 600px) {
-    #ctrl { flex-direction: row; align-items: flex-end; }
-    .btn { min-width: 54px; min-height: 54px; font-size: 18px; padding: 10px; }
-    #btn-fight { position: absolute; top: -50px; left: 50%; transform: translateX(-50%); height: 44px; min-width: 140px; font-size: 14px; }
+    #ctrl { align-items: flex-end; padding-bottom: 10px; }
+    .btn { min-width: 58px; min-height: 58px; font-size: 20px; }
+    #btn-fight { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 10; font-size: 14px; min-width: 100px; height: 50px; }
     #btn-fight:active { transform: translateX(-50%) translateY(2px); }
-    .ctrl-group.grid { gap: 6px; }
+    .ctrl-zone.center { order: 2; height: 60px; min-width: 100px; }
+    .ctrl-zone.left { order: 1; }
+    .ctrl-zone.right { order: 3; }
 }
 
 /* Leaderboard Modal */
@@ -109,38 +113,48 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
   </div>
 
   <div id="ctrl">
-    <div class="ctrl-group">
-      <button class="btn" id="btn-left" title="Move Left">◀</button>
-      <button class="btn" id="btn-right" title="Move Right">▶</button>
+    <div class="ctrl-zone left">
+      <div class="ctrl-group" style="justify-content: center;">
+        <button class="btn" id="btn-jump" data-key="W / ↑" title="Jump">▲</button>
+      </div>
+      <div class="ctrl-group">
+        <button class="btn" id="btn-left" data-key="LEFT">◀</button>
+        <button class="btn" id="btn-right" data-key="RIGHT">▶</button>
+      </div>
     </div>
     
-    <div class="ctrl-group">
-      <button class="btn" id="btn-fight">⚔ FIGHT!</button>
+    <div class="ctrl-zone center">
+      <button id="btn-fight">⚔ FIGHT!</button>
     </div>
 
-    <div class="ctrl-group grid">
-      <button class="btn" id="btn-jump" title="Jump (W)">▲</button>
-      <button class="btn" id="btn-punch" title="Punch (A)">👊</button>
-      <button class="btn" id="btn-kick" title="Kick (S)">🦵</button>
-      <button class="btn" id="btn-block" title="Block (D)">🛡</button>
+    <div class="ctrl-zone right">
+      <div class="ctrl-group grid">
+        <button class="btn" id="btn-punch" data-key="A" title="Punch">👊</button>
+        <button class="btn" id="btn-kick" data-key="S" title="Kick">🦵</button>
+        <button class="btn" id="btn-block" data-key="D" title="Block" style="grid-column: span 2; min-height: 50px;">🛡 BLOCK</button>
+      </div>
     </div>
   </div>
   
   <div id="leaderboard-modal">
     <h3>BASE CHAMPIONS</h3>
+    <div id="lb-status" style="font-size: 10px; color: #fbbf24; margin-bottom: 5px; height: 12px;"></div>
     <table class="lb-table">
         <thead>
             <tr>
                 <th>RANK</th>
                 <th>PLAYER</th>
-                <th>MATCH WINS</th>
+                <th>WINS</th>
             </tr>
         </thead>
         <tbody id="lb-body">
             <tr class="lb-row"><td></td><td>LOADING...</td><td></td></tr>
         </tbody>
     </table>
-    <button id="close-lb-btn" class="close-lb">CLOSE</button>
+    <div style="display: flex; gap: 10px; justify-content: center;">
+      <button id="close-lb-btn" class="close-lb">CLOSE</button>
+      <button id="refresh-lb-btn" class="close-lb" style="background: #2a2a6e;">RELOAD</button>
+    </div>
     <button id="lb-reset" style="margin-top: 20px; background: none; border: 1px solid #4a4a8a; color: #4a4a8a; font-size: 10px; cursor: pointer; padding: 6px 12px; border-radius: 4px; transition: all 0.2s;">RESET MY SCORE (TESTING)</button>
   </div>
 </div>
@@ -237,9 +251,10 @@ async function updateLeaderboardScore() {
 
 async function loadLeaderboard() {
     const lbBody = document.getElementById('lb-body');
+    const lbStatus = document.getElementById('lb-status');
     if (!lbBody) return;
     if (!db) {
-        lbBody.innerHTML = '<tr class="lb-row"><td></td><td>CONNECTING...</td><td></td></tr>';
+        lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">CONNECTING...</td></tr>';
         return;
     }
     try {
@@ -254,16 +269,20 @@ async function loadLeaderboard() {
             row.className = 'lb-row';
             row.style.animationDelay = `${(rank - 1) * 0.05}s`;
             const addr = data.address.substring(0, 6) + "..." + data.address.substring(data.address.length - 4);
+            const isMe = userAddress && data.address.toLowerCase() === userAddress.toLowerCase();
+            const rowStyle = isMe ? 'background: rgba(251,191,36,0.15); border-left: 3px solid #fbbf24;' : '';
+            
             row.innerHTML = `
-                <td>#${rank++}</td>
-                <td>${addr}</td>
-                <td style="color: #fbbf24; font-weight: bold;">${data.wins || 0}</td>
+                <td style="${rowStyle}">#${rank++}</td>
+                <td style="${rowStyle}">${isMe ? '⭐ YOU' : addr}</td>
+                <td style="${rowStyle} color: #fbbf24; font-weight: bold;">${data.wins || 0}</td>
             `;
             lbBody.appendChild(row);
         });
         if (rank === 1) {
             lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">NO CHAMPIONS YET</td></tr>';
         }
+        if (lbStatus) lbStatus.textContent = "UP TO DATE";
     } catch (err) {
         console.error("Error loading leaderboard", err);
         lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">ERROR LOADING</td></tr>';
@@ -277,6 +296,8 @@ initFirebase();
 const lbModal = document.getElementById('leaderboard-modal');
 document.getElementById('show-lb-btn').onclick = () => { lbModal.style.display = 'flex'; loadLeaderboard(); };
 document.getElementById('close-lb-btn').onclick = () => { lbModal.style.display = 'none'; };
+const refreshBtn = document.getElementById('refresh-lb-btn');
+if (refreshBtn) refreshBtn.onclick = loadLeaderboard;
 
 document.getElementById('lb-reset').onclick = async () => {
     if (!userAddress || !db) { alert("Wallet not connected"); return; }
