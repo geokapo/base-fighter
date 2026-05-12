@@ -407,10 +407,12 @@ function startLeaderboardListener() {
             lbBody.appendChild(row);
         });
 
-        if (rank === 1) {
-            lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">NO CHAMPIONS YET</td></tr>';
-        } else if (userAddress && !foundMe) {
+        if (!foundMe) {
             fetchPersonalRank();
+        }
+
+        if (rank === 1 && lbBody.children.length === 0) {
+            lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">NO CHAMPIONS YET</td></tr>';
         }
         
         if (lbStatus) lbStatus.textContent = "GLOBAL RANKINGS (LIVE)";
@@ -423,36 +425,58 @@ function startLeaderboardListener() {
 
 async function fetchPersonalRank() {
     const lbBody = document.getElementById('lb-body');
-    if (!userAddress || !db) return;
+    if (!db) return;
+    
     try {
-        const myDoc = await getDoc(doc(db, 'leaderboard', userAddress.toLowerCase()));
-        if (myDoc.exists()) {
-             const data = myDoc.data();
-             const wins = Math.max(data.wins || 0, sessionWins);
+        if (userAddress) {
+            const myDoc = await getDoc(doc(db, 'leaderboard', userAddress.toLowerCase()));
+            if (myDoc.exists()) {
+                 const data = myDoc.data();
+                 const wins = Math.max(data.wins || 0, sessionWins);
+                 const row = document.createElement('tr');
+                 row.className = 'lb-row';
+                 row.style.borderTop = '2px solid #2a2a6e';
+                 const rowStyle = 'background: rgba(251,191,36,0.15); border-left: 4px solid #fbbf24; color: #fff;';
+                 const shortAddr = userAddress.substring(0, 6) + "..." + userAddress.substring(userAddress.length - 4);
+                 row.innerHTML = `
+                    <td style="${rowStyle}">YOU</td>
+                    <td style="${rowStyle}">${shortAddr}</td>
+                    <td style="${rowStyle} color: #fbbf24;">${wins}</td>
+                 `;
+                 lbBody.appendChild(row);
+                 return;
+            }
+        }
+        
+        // Show Personal/Guest row if not in Top 10
+        if (sessionWins > 0) {
              const row = document.createElement('tr');
              row.className = 'lb-row';
              row.style.borderTop = '2px solid #2a2a6e';
-             const rowStyle = 'background: rgba(251,191,36,0.15); border-left: 4px solid #fbbf24; color: #fff;';
-             const shortAddr = userAddress.substring(0, 6) + "..." + userAddress.substring(userAddress.length - 4);
+             const isSigned = !!userAddress;
+             const rowStyle = isSigned ? 'background: rgba(251,191,36,0.15); border-left: 4px solid #fbbf24; color: #fff;' : 'background: rgba(59, 130, 246, 0.2); border-left: 4px solid #3b82f6; color: #fff;';
+             const label = isSigned ? 'YOU' : 'GUEST';
+             const subLabel = isSigned ? (userAddress.substring(0,6)+'...'+userAddress.substring(userAddress.length-4)) : 'LOCAL PROGRESS';
+             
              row.innerHTML = `
-                <td style="${rowStyle}">YOU</td>
-                <td style="${rowStyle}">${shortAddr}</td>
-                <td style="${rowStyle} color: #fbbf24;">${wins}</td>
-             `;
-             lbBody.appendChild(row);
-        } else if (sessionWins > 0) {
-             const row = document.createElement('tr');
-             row.className = 'lb-row';
-             row.style.borderTop = '2px solid #2a2a6e';
-             const rowStyle = 'background: rgba(100,100,250,0.15); border-left: 4px solid #4a4a8a; color: #fff;';
-             row.innerHTML = `
-                <td style="${rowStyle}">GUEST</td>
-                <td style="${rowStyle}">LOCAL SESSION</td>
+                <td style="${rowStyle}">${label}</td>
+                <td style="${rowStyle}">${subLabel}</td>
                 <td style="${rowStyle} color: #fbbf24;">${sessionWins}</td>
              `;
              lbBody.appendChild(row);
         }
-    } catch(e) {}
+    } catch(e) { console.log("Personal rank error", e); }
+}
+
+function updateWinsUI() {
+    const p1Score = document.getElementById('p1-score');
+    if (p1Score) p1Score.textContent = `CHAMPION WINS: ${sessionWins}`;
+    localStorage.setItem('bf_wins', sessionWins);
+    // Refresh modal if visible
+    const lbModal = document.getElementById('leaderboard-modal');
+    if (lbModal && lbModal.style.display === 'flex') {
+        startLeaderboardListener(); 
+    }
 }
 
 async function verifyOnChain() {
@@ -539,12 +563,6 @@ const snd = {
 let P, AI, running=false, round=1, scores=[0,0], raf, msgTimer=0, slowMo=0, shake=0;
 let sessionWins = parseInt(localStorage.getItem('bf_wins') || '0');
 let difficulty = 'medium';
-
-function updateWinsUI() {
-    const p1Score = document.getElementById('p1-score');
-    if (p1Score) p1Score.textContent = `CHAMPION WINS: ${sessionWins}`;
-    localStorage.setItem('bf_wins', sessionWins);
-}
 
 const DIFF_SETTINGS = {
   easy:   { react: [40, 80], block: 0.05, agg: 0.3,  speed: 0.4 },
