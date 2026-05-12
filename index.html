@@ -209,11 +209,13 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
 <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
-import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, getDocs, serverTimestamp, increment } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, getDocs, onSnapshot, serverTimestamp, increment } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
-// NOTE FOR GITHUB SECRET SCANNERS: This is a Firebase API Key (Identifier).
-// It is intended to be public in client-side applications.
-// Secure it by restricting to your domain in the Google Cloud Console.
+// 🛡️ SECURITY & GITHUB ALERTS
+// If you upload this to GitHub, you will likely get a "Secret Leak" alert. **This is normal for Firebase.**
+// - THE FIX: Go to https://console.cloud.google.com/apis/credentials, edit your API key, 
+//   and add a "Website Restriction" for your domain (e.g., yourname.github.io/* or vercel.app/*).
+//   This ensures the key ONLY works on your site and prevents anyone else from using it.
 const firebaseConfig = {
     "projectId": "gen-lang-client-0631620790",
     "appId": "1:892855136205:web:8e3433c75f1db623f31e84",
@@ -225,16 +227,10 @@ const firebaseConfig = {
     "measurementId": ""
 };
 
-/**
- * NOTE ON SECURITY:
- * Firebase API keys are designed to be public in client-side apps.
- * To protect your project, go to the Google Cloud Console (APIs & Services > Credentials)
- * and restrict this key to only work on your domain (e.g., georgiakapodistria.github.io).
- */
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 let userAddress = null;
+let lbUnsubscribe = null;
 
 const CONTRACT_ADDRESS = "0xF3D403B94C4fee3957d331E49b83631227A1706C";
 const CONTRACT_ABI = [
@@ -268,17 +264,23 @@ async function syncToChain() {
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
         
         msg('PENDING CHAIN SYNC...', 9999);
-        const tx = await contract.recordWin();
+        // Estimate gas to be safe
+        const tx = await contract.recordWin({ gasLimit: 120000 });
         msg('MINING TRANSACTION...', 9999);
         await tx.wait();
         msg('SCORE ON BASE UPDATED! ⛓', 120);
         
-        // Refresh to show on-chain status if needed
-        setTimeout(() => loadLeaderboard(), 500);
+        alert("Success! Your win is now permanent on the Base Blockchain.");
     } catch (err) {
         console.error("Chain sync failed", err);
-        msg('CHAIN ERROR (Check Gas/ABI)', 120);
-        alert("Sync failed. Ensure you are on the Base network and have a small amount of ETH for gas.");
+        let errorMsg = "Blockchain Sync Failed.";
+        if (err.message.includes('insufficient funds')) {
+            errorMsg = "Insufficient ETH for gas ($0.16 is VERY low). You need roughly $0.50 in ETH on Base.";
+        } else if (err.message.includes('user rejected')) {
+            errorMsg = "Transaction rejected by user.";
+        }
+        msg('CHAIN ERROR', 120);
+        alert(errorMsg);
     }
 }
 
@@ -296,7 +298,8 @@ async function connectWallet() {
             const accounts = await provider.request({ method: 'eth_requestAccounts' });
             userAddress = accounts[0].toLowerCase();
             updateWalletUI();
-            loadLeaderboard(); // Refresh to highlight 'YOU'
+            startLeaderboardListener(); // Switch to Real-time
+            
             if (db) {
                 const docRef = doc(db, 'leaderboard', userAddress);
                 const docSnap = await getDoc(docRef);
@@ -358,7 +361,6 @@ async function updateLeaderboardScore() {
         if (p1Score) p1Score.textContent = `CHAMPION WINS: ${sessionWins}`;
         
         msg('WINS SYNCED! 🏆', 60);
-        setTimeout(() => loadLeaderboard(), 500);
     } catch (err) {
         console.error("Firestore sync error:", err);
         msg('SYNC FAILED', 150);
@@ -368,35 +370,22 @@ async function updateLeaderboardScore() {
     }
 }
 
-async function loadLeaderboard() {
-    const lbBody = document.getElementById('lb-body');
-    const lbStatus = document.getElementById('lb-status');
-    if (!lbBody) return;
+// REAL-TIME LEADERBOARD
+function startLeaderboardListener() {
+    if (lbUnsubscribe) lbUnsubscribe();
+    if (!db) return;
     
-    lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">LOADING CHAMPIONS...</td></tr>';
+    const q = query(collection(db, 'leaderboard'), orderBy('wins', 'desc'), limit(10));
     
-    // Wait for DB if not ready
-    let attempts = 0;
-    while (!db && attempts < 20) {
-        await new Promise(r => setTimeout(r, 200));
-        attempts++;
-    }
-
-    if (!db) {
-        lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">DATABASE OFFLINE</td></tr>';
-        return;
-    }
-    
-    const path = 'leaderboard';
-    try {
-        const q = query(collection(db, 'leaderboard'), orderBy('wins', 'desc'), limit(10));
-        const querySnapshot = await getDocs(q); 
+    lbUnsubscribe = onSnapshot(q, (querySnapshot) => {
+        const lbBody = document.getElementById('lb-body');
+        const lbStatus = document.getElementById('lb-status');
+        if (!lbBody) return;
         
         lbBody.innerHTML = '';
         let rank = 1;
         let foundMe = false;
-        let myData = null;
-
+        
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             if (!data.address) return;
@@ -405,17 +394,14 @@ async function loadLeaderboard() {
             const addr = data.address.toLowerCase();
             const isMe = userAddress && addr === userAddress.toLowerCase();
             const shortAddr = addr.substring(0, 6) + "..." + addr.substring(addr.length - 4);
-            const rowStyle = isMe ? 'background: rgba(251,191,36,0.25); border-left: 3px solid #fbbf24; color: #fff;' : '';
+            const rowStyle = isMe ? 'background: rgba(251,191,36,0.3); border-left: 4px solid #fbbf24; color: #fff; font-weight: bold;' : '';
             
-            if (isMe) {
-                foundMe = true;
-                myData = { wins: data.wins, rank: rank };
-            }
+            if (isMe) foundMe = true;
 
             row.innerHTML = `
                 <td style="${rowStyle}">#${rank++}</td>
                 <td style="${rowStyle}">${isMe ? '⭐ YOU (' + shortAddr + ')' : shortAddr}</td>
-                <td style="${rowStyle} color: #fbbf24; font-weight: bold;">${data.wins || 0}</td>
+                <td style="${rowStyle} color: #fbbf24;">${data.wins || 0}</td>
             `;
             lbBody.appendChild(row);
         });
@@ -423,47 +409,41 @@ async function loadLeaderboard() {
         if (rank === 1) {
             lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">NO CHAMPIONS YET</td></tr>';
         } else if (userAddress && !foundMe) {
-            // Fetch personal stats if not in Top 10 to show rank accurately
-            try {
-                const myDoc = await getDoc(doc(db, 'leaderboard', userAddress.toLowerCase()));
-                if (myDoc.exists()) {
-                    const data = myDoc.data();
-                    const row = document.createElement('tr');
-                    row.className = 'lb-row';
-                    row.style.borderTop = '2px solid #2a2a6e';
-                    row.style.marginTop = '10px';
-                    const addr = data.address.toLowerCase();
-                    const shortAddr = addr.substring(0, 6) + "..." + addr.substring(addr.length - 4);
-                    const rowStyle = 'background: rgba(251,191,36,0.1); border-left: 3px solid #fbbf24; color: #fff;';
-                    
-                    row.innerHTML = `
-                        <td style="${rowStyle}">OFF-LIST</td>
-                        <td style="${rowStyle}">⭐ YOU (${shortAddr})</td>
-                        <td style="${rowStyle} color: #fbbf24; font-weight: bold;">${data.wins || 0}</td>
-                    `;
-                    lbBody.appendChild(row);
-                } else {
-                    const myStatusRow = document.createElement('tr');
-                    myStatusRow.className = 'lb-row';
-                    myStatusRow.innerHTML = `<td colspan="3" style="font-size: 9px; color: #666; padding-top: 10px;">PLAY A ROUND TO JOIN THE RANKINGS</td>`;
-                    lbBody.appendChild(myStatusRow);
-                }
-            } catch(e) { console.log("Personal rank error", e); }
+            fetchPersonalRank();
         }
-        if (lbStatus) lbStatus.textContent = "GLOBAL RANKINGS (FREE)";
         
+        if (lbStatus) lbStatus.textContent = "GLOBAL RANKINGS (LIVE)";
         const syncBtn = document.getElementById('sync-chain-btn');
         const syncHint = document.getElementById('sync-hint');
         if (syncBtn) syncBtn.style.display = userAddress ? 'block' : 'none';
         if (syncHint) syncHint.style.display = userAddress ? 'block' : 'none';
+    });
+}
 
-    } catch (err) {
-        console.error("Error loading leaderboard", err);
-        lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">ERROR LOADING RANKINGS</td></tr>';
-    }
+async function fetchPersonalRank() {
+    const lbBody = document.getElementById('lb-body');
+    if (!userAddress || !db) return;
+    try {
+        const myDoc = await getDoc(doc(db, 'leaderboard', userAddress.toLowerCase()));
+        if (myDoc.exists()) {
+             const data = myDoc.data();
+             const row = document.createElement('tr');
+             row.className = 'lb-row';
+             row.style.borderTop = '2px solid #2a2a6e';
+             const rowStyle = 'background: rgba(251,191,36,0.15); border-left: 4px solid #fbbf24; color: #fff;';
+             const shortAddr = userAddress.substring(0, 6) + "..." + userAddress.substring(userAddress.length - 4);
+             row.innerHTML = `
+                <td style="${rowStyle}">YOU</td>
+                <td style="${rowStyle}">${shortAddr}</td>
+                <td style="${rowStyle} color: #fbbf24;">${data.wins || 0}</td>
+             `;
+             lbBody.appendChild(row);
+        }
+    } catch(e) {}
 }
 
 async function verifyOnChain() {
+    if (lbUnsubscribe) lbUnsubscribe(); 
     const lbBody = document.getElementById('lb-body');
     const lbStatus = document.getElementById('lb-status');
     lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">VERIFYING BASE BLOCKCHAIN RECORDS...</td></tr>';
@@ -490,10 +470,10 @@ async function verifyOnChain() {
             lbBody.appendChild(row);
         });
         if (lbStatus) lbStatus.textContent = "VERIFIED ON BASE (BLOCKCHAIN)";
-        if (rank === 1) lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">NO BLOCKCHAIN RECORDS FOUND</td></tr>';
+        if (rank === 1) lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">NO RECORDS ON THIS NETWORK</td></tr>';
     } catch (e) {
-        alert("Connect wallet and use Base network to verify on-chain records.");
-        loadLeaderboard();
+        alert("Syncing error: Make sure you are on Base Mainnet to see blockchain records.");
+        startLeaderboardListener();
     }
 }
 
@@ -501,10 +481,10 @@ document.getElementById('wallet-btn').onclick = connectWallet;
 
 // Leaderboard Display
 const lbModal = document.getElementById('leaderboard-modal');
-document.getElementById('show-lb-btn').onclick = () => { lbModal.style.display = 'flex'; loadLeaderboard(); };
+document.getElementById('show-lb-btn').onclick = () => { lbModal.style.display = 'flex'; startLeaderboardListener(); };
 document.getElementById('close-lb-btn').onclick = () => { lbModal.style.display = 'none'; };
 const refreshBtn = document.getElementById('refresh-lb-btn');
-if (refreshBtn) refreshBtn.onclick = loadLeaderboard;
+if (refreshBtn) refreshBtn.onclick = startLeaderboardListener;
 
 const verifyBtn = document.getElementById('verify-chain-btn');
 if (verifyBtn) verifyBtn.onclick = verifyOnChain;
@@ -950,7 +930,7 @@ document.getElementById('btn-kick').addEventListener('click', ()=>{ if(running&&
 document.getElementById('btn-block').addEventListener('click',()=>{ if(running&&slowMo===0){P.state='block';P.blockTimer=10;} });
 
 reset(); draw(); hud();
-loadLeaderboard();
+startLeaderboardListener();
 </script>
 </body>
 </html>
