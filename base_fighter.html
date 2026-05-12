@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BASE FIGHTER</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; image-rendering: pixelated; }
+body { background: #0a0a1f; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: monospace; color: #fff; }
+h1 { font-size: 28px; letter-spacing: 6px; color: #fbbf24; text-shadow: 0 0 20px #f59e0b88; margin-bottom: 8px; }
+#subtitle { font-size: 11px; letter-spacing: 3px; color: #4a4a8a; margin-bottom: 14px; }
+#container { background: #1a1a2e; border: 2px solid #4a4a8a; border-radius: 10px; padding: 14px; max-width: 680px; width: 100%; }
+#hud { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.hp-wrap { width: 230px; }
+.hp-label { font-size: 11px; color: #888; margin-bottom: 3px; }
+.hp-bar { height: 14px; background: #111; border: 1px solid #333; border-radius: 2px; overflow: hidden; }
+.hp-fill { height: 100%; transition: width 0.1s; border-radius: 2px; }
+#p-hp { background: #4ade80; }
+#a-hp { background: #f87171; float: right; }
+.hp-wrap.right { text-align: right; }
+#mid { text-align: center; min-width: 110px; }
+#round-label { font-size: 15px; color: #fbbf24; font-weight: bold; }
+#score-label { font-size: 11px; color: #555; margin-top: 2px; }
+canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 4px; }
+#msg { text-align: center; font-size: 16px; color: #fbbf24; letter-spacing: 3px; font-weight: bold; min-height: 26px; margin: 8px 0 4px; }
+#ctrl { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
+.btn { background: #1e1e4e; color: #aaa; border: 1px solid #3a3a7a; border-radius: 4px; padding: 8px 14px; font-size: 12px; font-family: monospace; cursor: pointer; touch-action: manipulation; transition: background 0.1s, transform 0.1s; }
+.btn:hover { background: #2a2a6e; color: #fff; }
+.btn:active { transform: scale(0.95); background: #3a3a9e; }
+#btn-fight { color: #fbbf24; border-color: #fbbf24; background: #2a2a1e; font-weight: bold; }
+#hint { text-align: center; font-size: 10px; color: #333; margin-top: 6px; }
+</style>
+</head>
+<body>
+<h1>BASE FIGHTER</h1>
+<div id="subtitle">BUILT ON BASE · PIXEL BRAWLER</div>
+<div id="container">
+  <div id="hud">
+    <div class="hp-wrap">
+      <div class="hp-label">PLAYER</div>
+      <div class="hp-bar"><div class="hp-fill" id="p-hp" style="width:100%"></div></div>
+    </div>
+    <div id="mid">
+      <div id="round-label">ROUND 1</div>
+      <div id="score-label">0 — 0</div>
+    </div>
+    <div class="hp-wrap right">
+      <div class="hp-label" style="text-align:right">CPU</div>
+      <div class="hp-bar"><div class="hp-fill" id="a-hp" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <canvas id="c" width="640" height="224"></canvas>
+  <div id="msg">PRESS FIGHT TO START</div>
+
+  <div id="ctrl">
+    <button class="btn" id="btn-left">◀ LEFT</button>
+    <button class="btn" id="btn-right">RIGHT ▶</button>
+    <button class="btn" id="btn-jump">▲ JUMP [↑]</button>
+    <button class="btn" id="btn-punch">👊 PUNCH [A]</button>
+    <button class="btn" id="btn-kick">🦵 KICK [S]</button>
+    <button class="btn" id="btn-block">🛡 BLOCK [D]</button>
+    <button class="btn" id="btn-fight">⚔ FIGHT!</button>
+  </div>
+  <div id="hint">
+    ← → &nbsp;move &nbsp;|&nbsp; ↑ / Space &nbsp;jump &nbsp;|&nbsp; <span style="color:#4ade80">A</span> = punch &nbsp;|&nbsp; <span style="color:#4ade80">S</span> = kick &nbsp;|&nbsp; <span style="color:#4ade80">D</span> = block
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 640, H = 224, FLOOR = 162, GR = 0.55;
+
+// ── Audio ──────────────────────────────────────────────────
+let ac = null;
+function audio() { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); return ac; }
+function beep(freq, dur, type='square', vol=0.15, detune=0) {
+  try {
+    const a = audio(), o = a.createOscillator(), g = a.createGain();
+    o.connect(g); g.connect(a.destination);
+    o.type = type; o.frequency.value = freq; o.detune.value = detune;
+    g.gain.setValueAtTime(vol, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+    o.start(); o.stop(a.currentTime + dur);
+  } catch(e) {}
+}
+const snd = {
+  punch: () => { beep(180,0.08,'sawtooth',0.2); beep(90,0.1,'square',0.1); },
+  kick:  () => { beep(100,0.12,'sawtooth',0.25); beep(60,0.15,'square',0.12); },
+  block: () => { beep(400,0.06,'square',0.1); beep(600,0.04,'square',0.08); },
+  hurt:  () => { beep(220,0.18,'sawtooth',0.3,-200); },
+  jump:  () => { beep(300,0.1,'sine',0.08); },
+  win:   () => { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.18,'square',0.15),i*120)); },
+  lose:  () => { [300,250,200,150].forEach((f,i)=>setTimeout(()=>beep(f,0.2,'sawtooth',0.15),i*130)); }
+};
+
+// ── State ──────────────────────────────────────────────────
+let P, AI, running=false, round=1, scores=[0,0], raf, msgTimer=0;
+
+function mkChar(x, facing, isAI) {
+  return { x, y:FLOOR, vx:0, vy:0, w:28, h:48,
+    hp:100, facing, state:'idle', onGround:true,
+    hitFlash:0, blockTimer:0, attackTimer:0, hitbox:null, invincible:0, isAI };
+}
+
+function reset() {
+  P  = mkChar(80,  1, false);
+  AI = mkChar(560,-1, true);
+  draw();
+}
+
+// ── Background ─────────────────────────────────────────────
+const stars = Array.from({length:40},(_,i)=>({ x:(i*73+11)%W, y:(i*41+7)%(FLOOR-30), s:(i%3)+1 }));
+
+function drawBG() {
+  ctx.fillStyle='#0a0a1f'; ctx.fillRect(0,0,W,H);
+  stars.forEach(s=>{ ctx.fillStyle=`rgba(255,255,255,${0.25+s.s*0.12})`; ctx.fillRect(s.x,s.y,s.s,s.s); });
+  // arena bg buildings
+  for(let i=0;i<6;i++) {
+    ctx.fillStyle=`rgba(30,30,80,${0.3+i*0.02})`;
+    ctx.fillRect(30+i*105,FLOOR-55-i*8,52,55+i*8);
+    ctx.fillStyle='rgba(255,220,80,0.15)';
+    for(let r=0;r<3;r++) for(let c=0;c<3;c++) ctx.fillRect(38+i*105+c*14,FLOOR-48-i*8+r*16,8,10);
+  }
+  // arch center
+  ctx.fillStyle='rgba(60,60,160,0.2)'; ctx.fillRect(220,FLOOR-90,200,90);
+  ctx.strokeStyle='rgba(100,100,220,0.5)'; ctx.lineWidth=3;
+  ctx.strokeRect(228,FLOOR-90,184,90);
+  // floor
+  ctx.fillStyle='#5555aa'; ctx.fillRect(0,FLOOR,W,5);
+  ctx.fillStyle='#1e1e5e'; ctx.fillRect(0,FLOOR+5,W,H-FLOOR-5);
+  for(let i=0;i<12;i++) { ctx.fillStyle=`rgba(80,80,180,${0.1+i*0.01})`; ctx.fillRect(i*55,FLOOR+5,28,5); }
+  // BASE logo on floor
+  ctx.fillStyle='rgba(251,191,36,0.12)';
+  ctx.font='bold 11px monospace'; ctx.textAlign='center';
+  ctx.fillText('BASE FIGHTER', W/2, FLOOR+16);
+}
+
+function drawChar(c) {
+  const px=Math.round(c.x-c.w/2), py=Math.round(c.y-c.h), f=c.facing, fl=c.hitFlash>0;
+  ctx.save();
+  if(fl) ctx.globalAlpha=0.5;
+  const bc=fl?'#fff':(c.isAI?'#f87171':'#4ade80');
+  const hc=fl?'#eee':(c.isAI?'#fca5a5':'#86efac');
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillRect(px-4,FLOOR,c.w+8,5);
+  // head
+  ctx.fillStyle=hc; ctx.fillRect(px+4,py,20,18);
+  // eye
+  ctx.fillStyle='#111'; ctx.fillRect(f===1?px+16:px+8,py+6,3,3);
+  // mouth
+  ctx.fillStyle='#111'; ctx.fillRect(f===1?px+13:px+10,py+13,4,2);
+  // body
+  ctx.fillStyle=bc; ctx.fillRect(px+2,py+18,24,22);
+  ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fillRect(px+8,py+20,12,3);
+  // arms
+  if(c.state==='punch') {
+    ctx.fillStyle=bc; ctx.fillRect(f===1?px+26:px-10,py+22,16,8);
+    ctx.fillStyle=hc; ctx.fillRect(f===1?px+40:px-12,py+21,8,9);
+  } else {
+    ctx.fillStyle=bc; ctx.fillRect(f===1?px-4:px+28,py+22,10,8);
+  }
+  // legs
+  if(!c.onGround||c.state==='jump') {
+    ctx.fillStyle=bc; ctx.fillRect(px+4,py+40,10,14); ctx.fillRect(px+14,py+40,10,14);
+  } else {
+    ctx.fillStyle=bc; ctx.fillRect(px+4,py+40,10,20); ctx.fillRect(px+14,py+40,10,20);
+  }
+  // kick leg
+  if(c.state==='kick') {
+    ctx.fillStyle=bc; ctx.fillRect(f===1?px+18:px-14,py+42,20,9);
+    ctx.fillStyle=hc; ctx.fillRect(f===1?px+36:px-14,py+41,10,10);
+  }
+  // shield
+  if(c.state==='block') {
+    ctx.fillStyle='rgba(96,165,250,0.45)';
+    const sx=f===1?px+18:px-12; ctx.fillRect(sx,py+6,10,36);
+    ctx.fillStyle='rgba(186,230,253,0.7)'; ctx.fillRect(sx+2,py+8,6,32);
+  }
+  ctx.restore();
+}
+
+function draw() {
+  drawBG();
+  drawChar(P); drawChar(AI);
+  if(P.hitbox&&P.attackTimer>0) { ctx.fillStyle='rgba(251,191,36,0.22)'; ctx.fillRect(P.hitbox.x,P.hitbox.y,P.hitbox.w,P.hitbox.h); }
+  if(AI.hitbox&&AI.attackTimer>0) { ctx.fillStyle='rgba(248,113,113,0.18)'; ctx.fillRect(AI.hitbox.x,AI.hitbox.y,AI.hitbox.w,AI.hitbox.h); }
+}
+
+function hud() {
+  const pp=Math.max(0,P.hp), ap=Math.max(0,AI.hp);
+  document.getElementById('p-hp').style.width=pp+'%';
+  document.getElementById('p-hp').style.background=pp>50?'#4ade80':pp>25?'#fbbf24':'#f87171';
+  document.getElementById('a-hp').style.width=ap+'%';
+  document.getElementById('round-label').textContent='ROUND '+round;
+  document.getElementById('score-label').textContent=scores[0]+' — '+scores[1];
+}
+
+function msg(t,d=60){ document.getElementById('msg').textContent=t; msgTimer=d; }
+
+// ── Attack ─────────────────────────────────────────────────
+function attack(c,type) {
+  if(c.attackTimer>0) return;
+  c.state=type; c.attackTimer=type==='punch'?14:20;
+  const reach=type==='punch'?58:68, dmg=type==='punch'?8:13;
+  const hx=c.facing===1?c.x+8:c.x-reach-8;
+  c.hitbox={x:hx,y:c.y-44,w:reach,h:32,dmg};
+  snd[type]();
+}
+
+function checkHit(att,def) {
+  if(!att.hitbox||att.attackTimer<=0||def.invincible>0) return;
+  const hb=att.hitbox,dx=def.x-def.w/2,dy=def.y-def.h;
+  if(hb.x<dx+def.w&&hb.x+hb.w>dx&&hb.y<dy+def.h&&hb.y+hb.h>dy){
+    if(def.state==='block'){ def.hp-=Math.ceil(hb.dmg*0.12); snd.block(); msg('BLOCKED!',40); }
+    else{ def.hp-=hb.dmg; def.hitFlash=10; snd.hurt(); msg(att.isAI?'CPU HIT! -'+hb.dmg:'NICE HIT! +'+hb.dmg,45); }
+    att.hitbox=null; def.invincible=18; hud();
+  }
+}
+
+// ── AI ─────────────────────────────────────────────────────
+let aiT=0, aiAct=null;
+function aiStep() {
+  aiT--; if(aiT>0) return;
+  aiT=18+Math.floor(Math.random()*28);
+  const d=Math.abs(AI.x-P.x), r=Math.random();
+  if(d>130) aiAct='move';
+  else if(r<0.08){ aiAct='block'; aiT=22; }
+  else if(r<0.45) aiAct='punch';
+  else if(r<0.75) aiAct='kick';
+  else if(r<0.85) aiAct='jump';
+  else aiAct='move';
+}
+function applyAI() {
+  if(!running) return;
+  aiStep();
+  const d=Math.abs(AI.x-P.x);
+  if(aiAct==='move') AI.vx+=(AI.x>P.x?-0.6:0.6);
+  else if(aiAct==='block'){ AI.state='block'; AI.blockTimer=22; AI.vx=0; }
+  else if(aiAct==='punch'&&d<85&&AI.attackTimer<=0) attack(AI,'punch');
+  else if(aiAct==='kick'&&d<95&&AI.attackTimer<=0) attack(AI,'kick');
+  else if(aiAct==='jump'&&AI.onGround){ AI.vy=-12; AI.onGround=false; snd.jump(); }
+  else AI.vx+=(AI.x>P.x?-0.4:0.4);
+}
+
+// ── Physics ────────────────────────────────────────────────
+function tick(c) {
+  c.x+=c.vx; c.vy+=GR; c.y+=c.vy;
+  if(c.y>=FLOOR){ c.y=FLOOR; c.vy=0; c.onGround=true; if(c.state==='jump') c.state='idle'; }
+  c.x=Math.max(22,Math.min(W-22,c.x)); c.vx*=0.75;
+  if(c.hitFlash>0) c.hitFlash--;
+  if(c.invincible>0) c.invincible--;
+  if(c.attackTimer>0){ c.attackTimer--; if(c.attackTimer<=0){c.state='idle';c.hitbox=null;} }
+  if(c.blockTimer>0){ c.blockTimer--; if(c.blockTimer<=0&&c.state==='block') c.state='idle'; }
+  c.facing=c.x<(c.isAI?P.x:AI.x)?1:-1;
+}
+
+// ── Input ──────────────────────────────────────────────────
+const keys={};
+window.addEventListener('keydown',e=>{ keys[e.key]=true; e.preventDefault(); });
+window.addEventListener('keyup',e=>{ keys[e.key]=false; });
+
+function input() {
+  if(!running) return;
+  if(keys['ArrowLeft']) P.vx=-2.6;
+  if(keys['ArrowRight']) P.vx=2.6;
+  if((keys['ArrowUp']||keys[' '])&&P.onGround){ P.vy=-12; P.onGround=false; P.state='jump'; snd.jump(); keys['ArrowUp']=keys[' ']=false; }
+  if((keys['a']||keys['A'])&&P.attackTimer<=0){ attack(P,'punch'); keys['a']=keys['A']=false; }
+  if((keys['s']||keys['S'])&&P.attackTimer<=0){ attack(P,'kick'); keys['s']=keys['S']=false; }
+  if(keys['d']||keys['D']){ P.state='block'; P.blockTimer=5; }
+}
+
+// ── Round end ──────────────────────────────────────────────
+function checkEnd() {
+  if(P.hp>0&&AI.hp>0) return;
+  running=false;
+  const win=AI.hp<=0;
+  if(win){ scores[0]++; snd.win(); msg('YOU WIN! 🏆',200); }
+  else   { scores[1]++; snd.lose(); msg('CPU WINS! 😤',200); }
+  hud();
+  setTimeout(()=>{ document.getElementById('msg').textContent='Press FIGHT for next round'; },2500);
+  round++;
+}
+
+// ── Loop ───────────────────────────────────────────────────
+function loop() {
+  if(!running) return;
+  input(); applyAI(); tick(P); tick(AI);
+  checkHit(P,AI); checkHit(AI,P); checkEnd();
+  if(msgTimer>0){ msgTimer--; if(msgTimer===0) document.getElementById('msg').textContent=''; }
+  draw(); hud();
+  raf=requestAnimationFrame(loop);
+}
+
+function fight() {
+  if(raf) cancelAnimationFrame(raf);
+  reset(); running=true; aiT=0; aiAct=null;
+  audio(); msg('FIGHT!',55); loop();
+}
+
+document.getElementById('btn-fight').addEventListener('click', fight);
+
+// touch/click buttons
+function holdBtn(id,fn){
+  let iv;
+  const b=document.getElementById(id);
+  b.addEventListener('mousedown',()=>{fn();iv=setInterval(fn,80);});
+  ['mouseup','mouseleave'].forEach(e=>b.addEventListener(e,()=>clearInterval(iv)));
+  b.addEventListener('touchstart',e=>{e.preventDefault();fn();iv=setInterval(fn,80);},{passive:false});
+  b.addEventListener('touchend',()=>clearInterval(iv));
+}
+holdBtn('btn-left', ()=>{ if(running) P.vx=-2.6; });
+holdBtn('btn-right',()=>{ if(running) P.vx=2.6; });
+document.getElementById('btn-jump').addEventListener('click',()=>{ if(running&&P.onGround){P.vy=-12;P.onGround=false;P.state='jump';snd.jump();} });
+document.getElementById('btn-punch').addEventListener('click',()=>{ if(running&&P.attackTimer<=0) attack(P,'punch'); });
+document.getElementById('btn-kick').addEventListener('click', ()=>{ if(running&&P.attackTimer<=0) attack(P,'kick'); });
+document.getElementById('btn-block').addEventListener('click',()=>{ if(running){P.state='block';P.blockTimer=10;} });
+
+reset(); draw(); hud();
+</script>
+</body>
+</html>
