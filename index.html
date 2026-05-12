@@ -31,17 +31,20 @@ h1 { font-size: 28px; letter-spacing: 6px; color: #fbbf24; text-shadow: 0 0 20px
 canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 4px; background: #000; }
 #msg { text-align: center; font-size: 16px; color: #fbbf24; letter-spacing: 3px; font-weight: bold; min-height: 26px; margin: 12px 0 8px; }
 
-#ctrl { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-top: 10px; }
-.ctrl-group { display: flex; gap: 6px; }
-.ctrl-group.vertical { flex-direction: column; }
-.ctrl-group.grid { display: grid; grid-template-columns: 1fr 1fr; }
-.btn { background: #1e1e4e; color: #aaa; border: 1px solid #3a3a7a; border-radius: 8px; padding: 12px; font-size: 14px; font-family: inherit; cursor: pointer; touch-action: manipulation; transition: background 0.1s, transform 0.1s; display: flex; align-items: center; justify-content: center; min-width: 50px; min-height: 50px; }
+#ctrl { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-top: 15px; padding: 0 5px; }
+.ctrl-group { display: flex; gap: 8px; }
+.ctrl-group.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.btn { background: #1e1e4e; color: #aaa; border: 2px solid #3a3a7a; border-radius: 12px; padding: 14px; font-size: 16px; font-family: inherit; cursor: pointer; touch-action: manipulation; transition: background 0.1s, transform 0.1s; display: flex; align-items: center; justify-content: center; min-width: 60px; min-height: 60px; box-shadow: 0 4px 0 #0f0f2d; }
 .btn:hover { background: #2a2a6e; color: #fff; }
-.btn:active { transform: scale(0.92); background: #3a3a9e; }
-#btn-fight { color: #fbbf24; border-color: #fbbf24; background: #2a2a1e; font-weight: bold; padding: 10px 20px; font-size: 14px; height: 50px; }
-@media (max-width: 500px) {
-    #ctrl { padding: 0 10px; }
-    .btn { padding: 8px; min-width: 44px; min-height: 44px; font-size: 12px; }
+.btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #0f0f2d; background: #3a3a9e; }
+#btn-fight { color: #fbbf24; border-color: #fbbf24; background: #2a2a1e; font-weight: bold; padding: 10px 20px; font-size: 15px; height: 60px; min-width: 100px; box-shadow: 0 4px 0 #1a1a0a; }
+#btn-fight:active { transform: translateY(2px); box-shadow: 0 2px 0 #1a1a0a; }
+@media (max-width: 600px) {
+    #ctrl { flex-direction: row; align-items: flex-end; }
+    .btn { min-width: 54px; min-height: 54px; font-size: 18px; padding: 10px; }
+    #btn-fight { position: absolute; top: -50px; left: 50%; transform: translateX(-50%); height: 44px; min-width: 140px; font-size: 14px; }
+    #btn-fight:active { transform: translateX(-50%) translateY(2px); }
+    .ctrl-group.grid { gap: 6px; }
 }
 
 /* Leaderboard Modal */
@@ -102,7 +105,7 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
   <div id="msg">PRESS FIGHT TO START</div>
 
   <div id="ctrl-hints" style="display: flex; justify-content: center; font-size: 9px; color: #4a4a8a; margin-bottom: 4px; padding: 0 4px;">
-    <span>Arrows: Move | W: Jump | A: Punch | S: Kick | D: Block</span>
+    <span>Arrows: Move | W/↑: Jump | A: Punch | S: Kick | D: Block</span>
   </div>
 
   <div id="ctrl">
@@ -138,6 +141,7 @@ canvas { display: block; width: 100%; border: 2px solid #2a2a6e; border-radius: 
         </tbody>
     </table>
     <button id="close-lb-btn" class="close-lb">CLOSE</button>
+    <button id="lb-reset" style="margin-top: 20px; background: none; border: 1px solid #4a4a8a; color: #4a4a8a; font-size: 10px; cursor: pointer; padding: 6px 12px; border-radius: 4px; transition: all 0.2s;">RESET MY SCORE (TESTING)</button>
   </div>
 </div>
 
@@ -211,46 +215,58 @@ function updateWalletUI() {
 async function updateLeaderboardScore() {
     if (!userAddress || !db) return;
     try {
+        msg('SYNCING CHAMPION STATUS...', 9999);
         const docRef = doc(db, 'leaderboard', userAddress);
+        
+        // Use increment(1) to ensure the count goes up correctly
         await setDoc(docRef, {
             address: userAddress,
             wins: increment(1),
             updatedAt: serverTimestamp()
         }, { merge: true });
         
-        loadLeaderboard();
+        console.log("Score synced for:", userAddress);
+        // Delay slightly then reload to see updated count
+        setTimeout(() => loadLeaderboard(), 1500);
+        msg('RANKING UPDATED! 🏆', 120);
     } catch (err) {
-        console.error("Failed to update leaderboard", err);
+        console.error("Firestore sync error:", err);
+        msg('SYNC ERROR (Check Connection)', 120);
     }
 }
 
 async function loadLeaderboard() {
-    if (!db) return;
     const lbBody = document.getElementById('lb-body');
+    if (!lbBody) return;
+    if (!db) {
+        lbBody.innerHTML = '<tr class="lb-row"><td></td><td>CONNECTING...</td><td></td></tr>';
+        return;
+    }
     try {
         const q = query(collection(db, 'leaderboard'), orderBy('wins', 'desc'), limit(10));
-        const querySnapshot = await getDocs(q);
+        const querySnapshot = await getDocs(q); 
         lbBody.innerHTML = '';
         let rank = 1;
         querySnapshot.forEach((doc) => {
             const data = doc.data();
+            if (!data.address) return;
             const row = document.createElement('tr');
             row.className = 'lb-row';
             row.style.animationDelay = `${(rank - 1) * 0.05}s`;
             const addr = data.address.substring(0, 6) + "..." + data.address.substring(data.address.length - 4);
             row.innerHTML = `
-                <td>${rank++}</td>
+                <td>#${rank++}</td>
                 <td>${addr}</td>
-                <td>${data.wins}</td>
+                <td style="color: #fbbf24; font-weight: bold;">${data.wins || 0}</td>
             `;
             lbBody.appendChild(row);
         });
         if (rank === 1) {
-            lbBody.innerHTML = '<tr class="lb-row"><td></td><td>NO SCORES YET</td><td></td></tr>';
+            lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">NO CHAMPIONS YET</td></tr>';
         }
     } catch (err) {
         console.error("Error loading leaderboard", err);
-        lbBody.innerHTML = '<tr class="lb-row"><td></td><td>ERROR LOADING</td><td></td></tr>';
+        lbBody.innerHTML = '<tr class="lb-row"><td colspan="3">ERROR LOADING</td></tr>';
     }
 }
 
@@ -261,6 +277,18 @@ initFirebase();
 const lbModal = document.getElementById('leaderboard-modal');
 document.getElementById('show-lb-btn').onclick = () => { lbModal.style.display = 'flex'; loadLeaderboard(); };
 document.getElementById('close-lb-btn').onclick = () => { lbModal.style.display = 'none'; };
+
+document.getElementById('lb-reset').onclick = async () => {
+    if (!userAddress || !db) { alert("Wallet not connected"); return; }
+    if (confirm("Reset your score to zero for testing? This will sync with the leaderboard.")) {
+        try {
+            msg('RESETTING SCORE...', 9999);
+            await setDoc(doc(db, 'leaderboard', userAddress), { address: userAddress, wins: 0, updatedAt: serverTimestamp() }, { merge: true });
+            await loadLeaderboard();
+            msg('SCORE RESET TO 0', 60);
+        } catch (e) { console.error(e); msg('RESET ERROR', 60); }
+    }
+};
 
 /**
  * ── Game Engine (Original Base Fighter Code) ──────────────────
@@ -372,26 +400,46 @@ function drawChar(c) {
   if(fl) ctx.globalAlpha=0.6;
   const bc=fl?'#fff':(c.isAI?'#f87171':'#4ade80');
   const hc=fl?'#eee':(c.isAI?'#fca5a5':'#86efac');
+  const isAirMove = c.state === 'airpunch' || c.state === 'airkick';
+  
   ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillRect(px-4,FLOOR,c.w+8,5);
+  
+  // Special move aura
+  if (isAirMove) {
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = c.isAI ? '#f87171' : '#4ade80';
+  }
+
   ctx.fillStyle=hc; ctx.fillRect(px+4,py,20,18);
   ctx.fillStyle='#111'; ctx.fillRect(f===1?px+16:px+8,py+6,3,3);
   ctx.fillStyle='#111'; ctx.fillRect(f===1?px+13:px+10,py+13,4,2);
   ctx.fillStyle=bc; ctx.fillRect(px+2,py+18,24,22);
+  
+  if (isAirMove) {
+    // Add some "wind lines" or "motion trails"
+    ctx.fillStyle = fl ? '#fff' : bc;
+    for(let i=0; i<3; i++) {
+        ctx.fillRect(px + (f===1 ? -10-i*5 : 30+i*5), py+20+i*6, 12, 2);
+    }
+  }
+
   ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fillRect(px+8,py+20,12,3);
-  if(c.state==='punch') {
-    ctx.fillStyle=bc; ctx.fillRect(f===1?px+26:px-10,py+22,16,8);
-    ctx.fillStyle=hc; ctx.fillRect(f===1?px+40:px-12,py+21,8,9);
+  if(c.state==='punch' || c.state === 'airpunch') {
+    const ext = c.state === 'airpunch' ? 10 : 0;
+    ctx.fillStyle=bc; ctx.fillRect(f===1?px+26:px-10-ext,py+22-ext/2,16+ext,8+ext/2);
+    ctx.fillStyle=hc; ctx.fillRect(f===1?px+40+ext:px-12-ext,py+21-ext/2,8+ext/2,9+ext/2);
   } else {
     ctx.fillStyle=bc; ctx.fillRect(f===1?px-4:px+28,py+22,10,8);
   }
-  if(!c.onGround||c.state==='jump') {
+  if(!c.onGround||c.state==='jump'||isAirMove) {
     ctx.fillStyle=bc; ctx.fillRect(px+4,py+40,10,14); ctx.fillRect(px+14,py+40,10,14);
   } else {
     ctx.fillStyle=bc; ctx.fillRect(px+4,py+40,10,20); ctx.fillRect(px+14,py+40,10,20);
   }
-  if(c.state==='kick') {
-    ctx.fillStyle=bc; ctx.fillRect(f===1?px+18:px-14,py+42,20,9);
-    ctx.fillStyle=hc; ctx.fillRect(f===1?px+36:px-14,py+41,10,10);
+  if(c.state==='kick' || c.state === 'airkick') {
+    const ext = c.state === 'airkick' ? 12 : 0;
+    ctx.fillStyle=bc; ctx.fillRect(f===1?px+18:px-14-ext,py+42,20+ext,9);
+    ctx.fillStyle=hc; ctx.fillRect(f===1?px+36+ext:px-14-ext,py+41,10+ext/2,10+ext/2);
   }
   if(c.state==='block') {
     ctx.fillStyle='rgba(96,165,250,0.45)';
@@ -436,12 +484,34 @@ function msg(t,d=60){ document.getElementById('msg').textContent=t; msgTimer=d; 
 
 function attack(c,type) {
   if(c.attackTimer>0 || slowMo > 0 || c.state === 'block') return;
-  c.state=type; c.attackTimer=type==='punch'?14:20;
-  const reach=type==='punch'?58:68, dmg=type==='punch'?8:13;
+  
+  let actualType = type;
+  let dmgMult = 1;
+  let moveName = type.toUpperCase();
+
+  // Special Air Moves
+  if (!c.onGround) {
+    actualType = type === 'punch' ? 'airpunch' : 'airkick';
+    dmgMult = 1.5;
+    moveName = type === 'punch' ? 'DRAGON PUNCH' : 'FLYING KICK';
+    // Add forward momentum for special air moves
+    c.vx += c.facing * 5;
+  }
+
+  c.state=actualType; 
+  c.attackTimer=type==='punch'?14:20;
+  const reach=type==='punch'?58:68, dmg=Math.floor((type==='punch'?8:13) * dmgMult);
   const hx=c.facing===1?c.x+8:c.x-reach-8;
-  c.hitbox={x:hx,y:c.y-44,w:reach,h:32,dmg};
+  c.hitbox={x:hx,y:c.y-44,w:reach,h:32,dmg, isSpecial: !c.onGround};
+  
+  if (!c.onGround) {
+    msg(moveName + '!!', 40);
+    beep(400, 0.1, 'sawtooth', 0.2); 
+    // Particles or vibration effect could go here
+  }
   snd[type]();
 }
+
 
 function checkHit(att,def) {
   if(!att.hitbox||att.attackTimer<=0||def.invincible>0) return;
@@ -474,11 +544,18 @@ function aiStep() {
   aiT = s.react[0] + Math.floor(Math.random() * (s.react[1] - s.react[0]));
   const d = Math.abs(AI.x-P.x), r = Math.random();
   
+  // Jump logic (Special Moves)
+  const jumpChance = difficulty === 'hard' ? 0.08 : (difficulty === 'med' ? 0.03 : 0);
+  if (AI.onGround && r < jumpChance && d < 120) {
+    aiAct = 'jump';
+    aiT = 15;
+    return;
+  }
+
   if(d>130) aiAct='move';
   else if(r < s.block){ aiAct='block'; aiT=22; }
   else if(r < s.agg * 0.7) aiAct='punch';
   else if(r < s.agg) aiAct='kick';
-  else if(r < s.agg + 0.1 && difficulty === 'hard') aiAct='jump';
   else aiAct='move';
 }
 function applyAI() {
@@ -486,11 +563,21 @@ function applyAI() {
   aiStep();
   const s = DIFF_SETTINGS[difficulty];
   const d = Math.abs(AI.x-P.x);
+  
+  if(aiAct==='jump' && AI.onGround) { 
+    AI.vy=-12; AI.onGround=false; AI.state='jump'; snd.jump(); aiAct = 'mid-air'; 
+  }
+  
+  if(aiAct==='mid-air' || !AI.onGround) {
+    // Attack while in mid-air for special moves
+    if (AI.attackTimer <= 0) attack(AI, Math.random() > 0.5 ? 'punch' : 'kick');
+    return;
+  }
+
   if(aiAct==='move') AI.vx+=(AI.x>P.x?-s.speed:s.speed);
   else if(aiAct==='block'){ AI.state='block'; AI.blockTimer=22; AI.vx=0; }
   else if(aiAct==='punch'&&d<85&&AI.attackTimer<=0) attack(AI,'punch');
   else if(aiAct==='kick'&&d<95&&AI.attackTimer<=0) attack(AI,'kick');
-  else if(aiAct==='jump'&&AI.onGround){ AI.vy=-12; AI.onGround=false; snd.jump(); }
 }
 
 function tick(c) {
@@ -515,13 +602,15 @@ window.addEventListener('keydown',e=>{
     keys[c]=true;
     if(!running || slowMo > 0) return;
     
-    // Jump: W or Space
-    if((c==='KeyW' || c==='Space') && P.onGround){ 
+    // Jump: W, Space or ArrowUp
+    if((c==='KeyW' || c==='Space' || c==='ArrowUp') && P.onGround){ 
         P.vy=-12; P.onGround=false; P.state='jump'; snd.jump(); 
     }
     // Actions
     if(c==='KeyA'){ if(P.attackTimer<=0) attack(P,'punch'); }
     if(c==='KeyS'){ if(P.attackTimer<=0) attack(P,'kick'); }
+    
+    // Combo Hint: If jumping and attacking, it's a special move
   }
 });
 window.addEventListener('keyup',e=>{ keys[e.code]=false; });
@@ -544,8 +633,8 @@ function checkEnd() {
   running=false;
   const win=AI.hp<=0;
 
-  if(win){ scores[0]++; snd.win(); msg('YOU WIN ROUND! 🏆', 120); }
-  else   { scores[1]++; snd.lose(); msg('CPU WINS ROUND! 😤', 120); }
+  if(win){ scores[0]++; snd.win(); msg('YOU WIN ROUND! 🏆', 9999); }
+  else   { scores[1]++; snd.lose(); msg('CPU WINS ROUND! 😤', 9999); }
   
   hud();
 
@@ -553,14 +642,20 @@ function checkEnd() {
       const matchWin = scores[0] >= 2;
       
       setTimeout(() => {
-          msg(matchWin ? '🏆 YOU ARE CHAMPION! 🏆' : '💀 CPU IS CHAMPION 💀', 300);
+          msg(matchWin ? '🏆 YOU ARE CHAMPION! 🏆' : '💀 CPU IS CHAMPION 💀', 9999);
           if (matchWin && userAddress) updateLeaderboardScore();
           scores = [0, 0];
           round = 1;
+          document.getElementById('btn-fight').style.boxShadow = '0 0 20px #fbbf24';
+          document.getElementById('btn-fight').textContent = '⚔ REMATCH?';
       }, 800); 
   } else {
       round++;
-      setTimeout(() => { msg('READY FOR ROUND ' + round + '?', 300); }, 800);
+      setTimeout(() => { 
+        msg('READY FOR ROUND ' + round + '?', 9999); 
+        document.getElementById('btn-fight').style.boxShadow = '0 0 20px #fbbf24';
+        document.getElementById('btn-fight').textContent = '⚔ START R' + round;
+      }, 800);
   }
 }
 
@@ -582,6 +677,8 @@ function fight() {
   for(let k in keys) keys[k] = false;
   
   reset(); running=true; aiT=0; aiAct=null; slowMo=0; shake=0;
+  document.getElementById('btn-fight').style.boxShadow = 'none';
+  document.getElementById('btn-fight').textContent = '⚔ FIGHT!';
   const a = audio();
   if (a.state === 'suspended') a.resume();
   
