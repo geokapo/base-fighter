@@ -10,7 +10,7 @@ A retro pixel art fighting game built on Base. Single player vs AI, fully browse
 
 ## 🛡️ Security & GitHub Alerts
 If you upload this to GitHub, you will likely get a "Secret Leak" alert. **This is normal for Firebase.**
-- **The Fix**: Go to [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials), edit your API key, and add a **Website Restriction** for your domain (e.g., `your-app.vercel.app/*`). This prevents others from using your billable resources.
+- **The Fix**: Go to [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials), edit your API key, and add a **Website Restriction** for your domain (e.g., `your-app.vercel.app/*` or `yourname.github.io/*`). This ensures the key only works on your site and prevents others from usage.
 
 ## Controls
 
