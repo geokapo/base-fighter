@@ -318,7 +318,7 @@ function startLeaderboardListener() {
 function updateWinsUI() {
     const p1Score = document.getElementById('p1-score');
     if (p1Score) p1Score.textContent = `CHAMPION WINS: ${sessionWins}`;
-    localStorage.setItem('bf_wins', sessionWins);
+    if(userAddress) localStorage.setItem('bf_wins', sessionWins);
 }
 
 document.getElementById('wallet-btn').onclick = connectWallet;
@@ -351,7 +351,7 @@ const snd={
 };
 
 let P,AI,running=false,round=1,scores=[0,0],raf,msgTimer=0,slowMo=0,shake=0;
-let sessionWins=parseInt(localStorage.getItem('bf_wins')||'0');
+let sessionWins=0;
 let difficulty='medium';
 
 const DIFF_SETTINGS={
